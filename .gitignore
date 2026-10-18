@@ -6,3 +6,5 @@ docs/*
 
 cookies.txt
 **/src/generated
+
+*.tsbuildinfo
