@@ -7,9 +7,10 @@ import { AuthGuard } from './auth/auth.guard.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TicketsModule } from './tickets/tickets.module.js';
 import { CommentsModule } from './comments/comments.module.js';
+import { QueueModule } from './queue/queue.module.js';
 
 @Module({
-  imports: [ PrismaModule, ProjectsModule, TicketsModule, CommentsModule ],
+  imports: [ PrismaModule, ProjectsModule, TicketsModule, CommentsModule, QueueModule ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: AuthGuard }],
 })

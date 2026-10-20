@@ -1,0 +1,19 @@
+{
+  "name": "notifications",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts"
+  },
+  "dependencies": {
+    "bullmq": "^6.3.17",
+    "ioredis": "^6.0.0",
+    "nodemailer": "^10.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/nodemailer": "^8.0.2",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}

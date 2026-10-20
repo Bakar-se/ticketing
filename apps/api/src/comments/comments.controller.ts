@@ -13,7 +13,7 @@ export class CommentsController {
     @Param('ticketId') ticketId: string,
     @Body() body: { body?: string },
   ) {
-    return this.comments.create(user.id, ticketId, body);
+    return this.comments.create(user, ticketId, body);
   }
 
   @Get('tickets/:ticketId/comments')

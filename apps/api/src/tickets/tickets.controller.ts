@@ -13,7 +13,7 @@ export class TicketsController {
     @Param('projectId') projectId: string,
     @Body() body: { title?: string; description?: string },
   ) {
-    return this.tickets.create(user.id, projectId, body);
+    return this.tickets.create(user, projectId, body);
   }
 
   @Get('projects/:projectId/tickets')
