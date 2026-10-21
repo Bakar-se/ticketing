@@ -8,3 +8,8 @@ cookies.txt
 **/src/generated
 
 *.tsbuildinfo
+
+**/.claude
+**/.windsurf
+**/.agents
+**/skills-lock.json
