@@ -1,10 +1,48 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { SessionUser } from '../auth/auth.guard.js';
-import { TicketStatus } from '../generated/prisma/enums.js';
+import { TicketPriority, TicketStatus } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from '../queue/notifications.service.js';
+import {
+  CreateTicketInput,
+  ListTicketsQuery,
+  UpdateTicketInput,
+} from './tickets.schemas.js';
+import { toDate } from '../common/date.js';
 
-const STATUSES = new Set<string>(Object.values(TicketStatus));
+const withProjectKey = { project: { select: { key: true } } } as const;
+
+// Adds the human-readable id (WEB-12) to what the API returns
+function present<T extends { number: number; project: { key: string } }>(
+  ticket: T,
+) {
+  const { project, ...rest } = ticket;
+  return {
+    ...rest,
+    projectKey: project.key,
+    ticketKey: `${project.key}-${ticket.number}`,
+  };
+}
+
+function orderByFor(query: ListTicketsQuery) {
+  const dir = query.order;
+  switch (query.sort) {
+    case 'dueDate':
+      return { dueDate: { sort: dir, nulls: 'last' as const } };
+    case 'storyPoints':
+      return { storyPoints: { sort: dir, nulls: 'last' as const } };
+    case 'priority':
+      return { priority: dir };
+    case 'createdAt':
+      return { createdAt: dir };
+    default:
+      return { number: dir };
+  }
+}
 
 @Injectable()
 export class TicketsService {
@@ -13,25 +51,56 @@ export class TicketsService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async create(
-    user: SessionUser,
+  private async ownedProject(
+    userId: string,
     projectId: string,
-    input: { title?: string; description?: string },
+    allowArchived = false,
   ) {
-    if (!input.title) throw new BadRequestException('Title is required');
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, createdById: user.id },
-    });
-    if (!project) throw new NotFoundException('Project not found');
-
-    const ticket = await this.prisma.ticket.create({
-      data: {
-        title: input.title,
-        description: input.description,
-        projectId,
-        createdById: user.id,
+      where: {
+        id: projectId,
+        createdById: userId,
+        ...(allowArchived ? {} : { archivedAt: null }),
       },
     });
+    if (!project) throw new NotFoundException('Project not found');
+    return project;
+  }
+
+  private async owned(userId: string, id: string) {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { id, createdById: userId },
+      include: withProjectKey,
+    });
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    return ticket;
+  }
+
+  async create(user: SessionUser, projectId: string, input: CreateTicketInput) {
+    await this.ownedProject(user.id, projectId);
+
+    const ticket = await this.prisma.$transaction(async (tx) => {
+      const { ticketCounter } = await tx.project.update({
+        where: { id: projectId },
+        data: { ticketCounter: { increment: 1 } },
+        select: { ticketCounter: true },
+      });
+      return tx.ticket.create({
+        data: {
+          number: ticketCounter,
+          title: input.title,
+          description: input.description,
+          status: input.status,
+          priority: input.priority,
+          storyPoints: input.storyPoints,
+          dueDate: toDate(input.dueDate),
+          projectId,
+          createdById: user.id,
+        },
+        include: withProjectKey,
+      });
+    });
+
     await this.notifications.enqueue({
       type: 'ticket.created',
       ticketId: ticket.id,
@@ -39,49 +108,70 @@ export class TicketsService {
       recipientEmail: user.email,
       recipientName: user.name,
     });
-    return ticket;
+    return present(ticket);
   }
 
-  async findAll(userId: string, projectId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id: projectId, createdById: userId },
-    });
-    if (!project) throw new NotFoundException('Project not found');
-    return this.prisma.ticket.findMany({
-      where: { projectId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAll(userId: string, projectId: string, query: ListTicketsQuery) {
+    const where = {
+      projectId,
+      status: query.status,
+      priority: query.priority,
+      ...(query.q
+        ? {
+            OR: [
+              { title: { contains: query.q, mode: 'insensitive' as const } },
+              {
+                description: {
+                  contains: query.q,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.ticket.findMany({
+        where,
+        orderBy: orderByFor(query),
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        include: withProjectKey,
+      }),
+      this.prisma.ticket.count({ where }),
+    ]);
+    return {
+      items: items.map(present),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
   }
 
   async findOne(userId: string, id: string) {
-    const ticket = await this.prisma.ticket.findFirst({
-      where: { id, createdById: userId },
-    });
-    if (!ticket) throw new NotFoundException();
-    return ticket;
+    return present(await this.owned(userId, id));
   }
 
-  async update(
-    userId: string,
-    id: string,
-    input: { title?: string; description?: string; status?: string },
-  ) {
-    await this.findOne(userId, id);
-    if (input.status !== undefined && !STATUSES.has(input.status)) {
-      throw new BadRequestException('status must be TODO, IN_PROGRESS, or DONE');
-    }
-    return this.prisma.ticket.update({
+  async update(userId: string, id: string, input: UpdateTicketInput) {
+    await this.owned(userId, id);
+    const ticket = await this.prisma.ticket.update({
       where: { id },
       data: {
         title: input.title,
         description: input.description,
-        status: input.status as TicketStatus | undefined,
+        status: input.status,
+        priority: input.priority,
+        storyPoints: input.storyPoints,
+        dueDate: toDate(input.dueDate),
       },
+      include: withProjectKey,
     });
+    return present(ticket);
   }
 
   async remove(userId: string, id: string) {
-    await this.findOne(userId, id);
+    await this.owned(userId, id);
     await this.prisma.ticket.delete({ where: { id } });
     return { id };
   }

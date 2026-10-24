@@ -1,4 +1,14 @@
-node_modules
 **/node_modules
-.git
 **/dist
+**/.next
+**/.env
+**/.env.*
+**/src/generated
+**/*.tsbuildinfo
+**/.storybook
+**/storybook-static
+.git
+docs
+k8s
+*.md
+cookies.txt

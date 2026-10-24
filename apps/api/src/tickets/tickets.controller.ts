@@ -1,7 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import type { SessionUser } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/current-user/current-user.decorator.js';
+import { ZodPipe } from '../common/zod.pipe.js';
 import { TicketsService } from './tickets.service.js';
+import {
+  createTicketSchema,
+  listTicketsSchema,
+  updateTicketSchema,
+  type CreateTicketInput,
+  type ListTicketsQuery,
+  type UpdateTicketInput,
+} from './tickets.schemas.js';
 
 @Controller()
 export class TicketsController {
@@ -11,7 +29,7 @@ export class TicketsController {
   create(
     @CurrentUser() user: SessionUser,
     @Param('projectId') projectId: string,
-    @Body() body: { title?: string; description?: string },
+    @Body(new ZodPipe(createTicketSchema)) body: CreateTicketInput,
   ) {
     return this.tickets.create(user, projectId, body);
   }
@@ -20,8 +38,9 @@ export class TicketsController {
   findAll(
     @CurrentUser() user: SessionUser,
     @Param('projectId') projectId: string,
+    @Query(new ZodPipe(listTicketsSchema)) query: ListTicketsQuery,
   ) {
-    return this.tickets.findAll(user.id, projectId);
+    return this.tickets.findAll(user.id, projectId, query);
   }
 
   @Get('tickets/:id')
@@ -33,7 +52,7 @@ export class TicketsController {
   update(
     @CurrentUser() user: SessionUser,
     @Param('id') id: string,
-    @Body() body: { title?: string; description?: string; status?: string },
+    @Body(new ZodPipe(updateTicketSchema)) body: UpdateTicketInput,
   ) {
     return this.tickets.update(user.id, id, body);
   }
