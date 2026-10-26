@@ -58,6 +58,7 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
       BETTER_AUTH_URL: http://localhost:4001 # the public URL the browser uses
       WEB_ORIGIN: http://localhost:3000
+      EXPO_DEV: "true" # dev only: trust Expo Go origins
     ports:
       - "4001:4001"
     depends_on:
