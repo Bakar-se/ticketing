@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL ?? "http://localhost:4001";
-const PUBLIC_PATHS = ["/login", "/signup"];
+const AUTH_URL =
+  process.env.AUTH_INTERNAL_URL ??
+  process.env.NEXT_PUBLIC_AUTH_URL ??
+  "http://localhost:4001";
+const PUBLIC_PATHS = ["/signin", "/signup"];
 
 // Ask the auth service whether this cookie is a real, unexpired session
 async function hasValidSession(request: NextRequest): Promise<boolean> {
@@ -27,7 +30,7 @@ export async function proxy(request: NextRequest) {
 
   if (!authenticated && !isPublic) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/signin";
     url.search = "";
     return NextResponse.redirect(url);
   }

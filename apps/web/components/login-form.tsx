@@ -42,49 +42,55 @@ export function LoginForm() {
       email: values.email,
       password: values.password,
     });
-    if (result.error) setServerError(result.error.message ?? "Something went wrong");
+    if (result.error)
+      setServerError(result.error.message ?? "Something went wrong");
     else router.push("/");
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Use your email and password</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="login-email">Email</Label>
-            <Input id="login-email" type="email" autoComplete="email" {...register("email")} />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="login-password">Password</Label>
-            <Input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              {...register("password")}
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
-          </div>
-          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-          <Button type="submit" disabled={isSubmitting}>
-            Sign in
-          </Button>
-          <p className="text-center text-sm">
-            Need an account?{" "}
-            <Link className="underline" href="/signup">
-              Sign up
-            </Link>
-          </p>
-        </form>
-      </CardContent>
-    </Card>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <div className="flex flex-col items-start gap-1 text-left">
+        <h1 className="text-2xl font-bold">Welcome Back</h1>
+        <p className="text-sm text-balance text-muted-foreground">
+          Enter your email and password to Signin
+        </p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="login-email">Email</Label>
+        <Input
+          id="login-email"
+          type="email"
+          autoComplete="email"
+          {...register("email")}
+          placeholder="your@company.com"
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="login-password">Password</Label>
+        <Input
+          id="login-password"
+          type="password"
+          autoComplete="current-password"
+          {...register("password")}
+          placeholder="Enter your password"
+        />
+        {errors.password && (
+          <p className="text-sm text-destructive">{errors.password.message}</p>
+        )}
+      </div>
+      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+      <Button type="submit" disabled={isSubmitting}>
+        Sign in
+      </Button>
+      <p className="text-center text-sm">
+        Don't have an account?{" "}
+        <Link className="underline" href="/signup">
+          Sign up
+        </Link>
+      </p>
+    </form>
   );
 }

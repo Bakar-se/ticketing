@@ -70,76 +70,89 @@ export function SignupForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>It only takes a moment</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="signup-name">Full name</Label>
-            <Input id="signup-name" autoComplete="name" {...register("name")} />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="signup-email">Email</Label>
-            <Input id="signup-email" type="email" autoComplete="email" {...register("email")} />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="signup-phone">Phone (optional)</Label>
-            <Input id="signup-phone" type="tel" autoComplete="tel" {...register("phone")} />
-            {errors.phone && (
-              <p className="text-sm text-destructive">{errors.phone.message}</p>
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="signup-password">Password</Label>
-            <Input
-              id="signup-password"
-              type="password"
-              autoComplete="new-password"
-              {...register("password")}
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="signup-confirm">Confirm password</Label>
-            <Input
-              id="signup-confirm"
-              type="password"
-              autoComplete="new-password"
-              {...register("confirmPassword")}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-destructive">
-                {errors.confirmPassword.message}
-              </p>
-            )}
-          </div>
-          {serverError && (
-            <p className="text-sm text-destructive">{serverError}</p>
-          )}
-          <Button type="submit" disabled={isSubmitting}>
-            Create account
-          </Button>
-          <p className="text-center text-sm">
-            Already registered?{" "}
-            <Link className="underline" href="/login">
-              Sign in
-            </Link>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <div className="flex flex-col items-start gap-1 text-left">
+        <h1 className="text-2xl font-bold">Create an account</h1>
+        <p className="text-sm text-balance text-muted-foreground">
+          Enter your details to get started
+        </p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="signup-name">Full name</Label>
+        <Input
+          id="signup-name"
+          autoComplete="name"
+          {...register("name")}
+          placeholder="Your name"
+        />
+        {errors.name && (
+          <p className="text-sm text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="signup-email">Email</Label>
+        <Input
+          id="signup-email"
+          type="email"
+          autoComplete="email"
+          {...register("email")}
+          placeholder="your@company.com"
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="signup-phone">Phone (optional)</Label>
+        <Input
+          id="signup-phone"
+          type="tel"
+          autoComplete="tel"
+          {...register("phone")}
+          placeholder="Enter your phone number"
+        />
+        {errors.phone && (
+          <p className="text-sm text-destructive">{errors.phone.message}</p>
+        )}
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="signup-password">Password</Label>
+        <Input
+          id="signup-password"
+          type="password"
+          autoComplete="new-password"
+          {...register("password")}
+          placeholder="Enter your password"
+        />
+        {errors.password && (
+          <p className="text-sm text-destructive">{errors.password.message}</p>
+        )}
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="signup-confirm">Confirm password</Label>
+        <Input
+          id="signup-confirm"
+          type="password"
+          autoComplete="new-password"
+          {...register("confirmPassword")}
+          placeholder="Confirm your password"
+        />
+        {errors.confirmPassword && (
+          <p className="text-sm text-destructive">
+            {errors.confirmPassword.message}
           </p>
-        </form>
-      </CardContent>
-    </Card>
+        )}
+      </div>
+      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+      <Button type="submit" disabled={isSubmitting}>
+        Create account
+      </Button>
+      <p className="text-center text-sm">
+        Already have an account?{" "}
+        <Link className="underline" href="/signin">
+          Sign in
+        </Link>
+      </p>
+    </form>
   );
 }

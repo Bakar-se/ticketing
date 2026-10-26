@@ -7,7 +7,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: init.body ? { "Content-Type": "application/json" } : {},
   });
   if (res.status === 401) {
-    window.location.href = "/login";
+    window.location.href = "/signin";
     throw new Error("Unauthorized");
   }
   if (!res.ok) {
