@@ -1,7 +1,12 @@
 {
   "name": "ticketing",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/api",
+    "apps/auth",
+    "apps/notifications",
+    "apps/web"
+  ],
   "devDependencies": {
     "typescript": "^6.0.3"
   }
