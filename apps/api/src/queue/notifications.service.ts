@@ -5,9 +5,13 @@ import { Redis } from 'ioredis';
 export type NotificationJob = {
   type: 'ticket.created' | 'comment.created';
   ticketId: string;
+  ticketKey: string; // e.g. WEB-12
   ticketTitle: string;
   recipientEmail: string;
   recipientName: string;
+  priority?: string;
+  storyPoints?: number | null;
+  dueDate?: string | null; // YYYY-MM-DD
   commentBody?: string;
 };
 
@@ -29,7 +33,9 @@ export class NotificationsService implements OnModuleDestroy {
         removeOnFail: 500,
       });
     } catch (err) {
-      this.logger.error(`Could not enqueue ${job.type}: ${(err as Error).message}`);
+      this.logger.error(
+        `Could not enqueue ${job.type}: ${(err as Error).message}`,
+      );
     }
   }
 

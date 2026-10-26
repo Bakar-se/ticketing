@@ -104,7 +104,13 @@ export class TicketsService {
     await this.notifications.enqueue({
       type: 'ticket.created',
       ticketId: ticket.id,
+      ticketKey: `${ticket.project.key}-${ticket.number}`,
       ticketTitle: ticket.title,
+      priority: ticket.priority,
+      storyPoints: ticket.storyPoints,
+      dueDate: ticket.dueDate
+        ? ticket.dueDate.toISOString().slice(0, 10)
+        : null,
       recipientEmail: user.email,
       recipientName: user.name,
     });

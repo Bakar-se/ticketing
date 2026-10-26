@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { SessionUser } from '../auth/auth.guard.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from '../queue/notifications.service.js';
@@ -13,6 +17,7 @@ export class CommentsService {
   private async ownedTicket(userId: string, ticketId: string) {
     const ticket = await this.prisma.ticket.findFirst({
       where: { id: ticketId, createdById: userId },
+      include: { project: { select: { key: true } } },
     });
     if (!ticket) throw new NotFoundException('Ticket not found');
     return ticket;
@@ -27,6 +32,7 @@ export class CommentsService {
     await this.notifications.enqueue({
       type: 'comment.created',
       ticketId,
+      ticketKey: `${ticket.project.key}-${ticket.number}`,
       ticketTitle: ticket.title,
       recipientEmail: user.email,
       recipientName: user.name,
