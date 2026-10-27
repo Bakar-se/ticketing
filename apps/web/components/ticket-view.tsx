@@ -36,6 +36,7 @@ export function TicketView() {
       <Select value={ticket.status} onValueChange={(value) => value && setStatus(value)}>
         <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
         <SelectContent>
+          <SelectItem value="BACKLOG">BACKLOG</SelectItem>
           <SelectItem value="TODO">TODO</SelectItem>
           <SelectItem value="IN_PROGRESS">IN_PROGRESS</SelectItem>
           <SelectItem value="DONE">DONE</SelectItem>

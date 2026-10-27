@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,6 +21,7 @@ export function CreateForm({
   submitLabel: string;
   onSubmit: (value: string) => Promise<void>;
 }) {
+  const [serverError, setServerError] = useState("");
   const {
     register,
     handleSubmit,
@@ -30,8 +32,15 @@ export function CreateForm({
   return (
     <form
       onSubmit={handleSubmit(async ({ value }) => {
-        await onSubmit(value);
-        reset();
+        setServerError("");
+        try {
+          await onSubmit(value);
+          reset();
+        } catch (e) {
+          setServerError(
+            e instanceof Error ? e.message : "Something went wrong",
+          );
+        }
       })}
       className="flex flex-col gap-1"
     >
@@ -41,7 +50,10 @@ export function CreateForm({
           {submitLabel}
         </Button>
       </div>
-      {errors.value && <p className="text-sm text-destructive">{errors.value.message}</p>}
+      {errors.value && (
+        <p className="text-sm text-destructive">{errors.value.message}</p>
+      )}
+      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
     </form>
   );
 }

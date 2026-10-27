@@ -2,11 +2,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CreateForm } from "@/components/create-form";
+import { CreateProjectForm } from "@/components/create-project-form";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 
-type Project = { id: string; name: string };
+type Project = { id: string; key: string; name: string };
 
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -31,22 +31,12 @@ export default function Home() {
           Sign out
         </Button>
       </div>
-      <CreateForm
-        placeholder="New project name"
-        submitLabel="Create"
-        onSubmit={async (name) => {
-          await api("/projects", {
-            method: "POST",
-            body: JSON.stringify({ name }),
-          });
-          load();
-        }}
-      />
+      <CreateProjectForm onCreated={load} />
       <ul className="space-y-1">
         {projects.map((p) => (
           <li key={p.id}>
             <Link className="underline" href={`/projects/${p.id}`}>
-              {p.name}
+              {p.key} · {p.name}
             </Link>
           </li>
         ))}

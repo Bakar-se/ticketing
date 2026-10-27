@@ -12,7 +12,14 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message ?? res.statusText);
+    const issues = Array.isArray(err.issues)
+      ? err.issues
+          .map(
+            (i: { path: string; message: string }) => `${i.path}: ${i.message}`,
+          )
+          .join(", ")
+      : "";
+    throw new Error(issues || err.message || res.statusText);
   }
   return res.json();
 }
