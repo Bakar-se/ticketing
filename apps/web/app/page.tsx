@@ -1,46 +1,54 @@
-"use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { CreateProjectForm } from "@/components/create-project-form";
-import { api } from "@/lib/api";
-import { authClient } from "@/lib/auth-client";
+import { Check } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-type Project = { id: string; key: string; name: string };
-
-export default function Home() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const load = () =>
-    api<Project[]>("/projects")
-      .then(setProjects)
-      .catch(() => {});
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function signOut() {
-    await authClient.signOut();
-    window.location.href = "/signin";
-  }
-
+export default function LandingPage() {
   return (
-    <main className="mx-auto max-w-xl space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Projects</h1>
-        <Button variant="outline" onClick={signOut}>
-          Sign out
-        </Button>
+    <div className="grid min-h-svh lg:grid-cols-2">
+      <div className="flex flex-col gap-4 p-6 md:p-10">
+        <Link href="/" className="flex items-center gap-2 font-medium">
+          <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Check className="size-4" />
+          </div>
+          Ticketing
+        </Link>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                Plan, track and ship work in one place.
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Projects, a board, and a backlog for the work your team is
+                shipping.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Link href="/signin" className={cn(buttonVariants())}>
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                Sign up
+              </Link>
+              <Link
+                href="/projects"
+                className={cn(buttonVariants({ variant: "link" }), "h-auto")}
+              >
+                Go to projects
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
-      <CreateProjectForm onCreated={load} />
-      <ul className="space-y-1">
-        {projects.map((p) => (
-          <li key={p.id}>
-            <Link className="underline" href={`/projects/${p.id}`}>
-              {p.key} · {p.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </main>
+      <div className="relative hidden items-end bg-neutral-950 p-10 lg:flex">
+        <p className="text-lg font-medium text-white">
+          Plan, track and ship work in one place.
+        </p>
+      </div>
+    </div>
   );
 }

@@ -4,7 +4,8 @@ const AUTH_URL =
   process.env.AUTH_INTERNAL_URL ??
   process.env.NEXT_PUBLIC_AUTH_URL ??
   "http://localhost:4001";
-const PUBLIC_PATHS = ["/signin", "/signup"];
+const PUBLIC_PATHS = ["/", "/signin", "/signup"];
+const AUTH_ENTRY_PATHS = ["/signin", "/signup"];
 
 // Ask the auth service whether this cookie is a real, unexpired session
 async function hasValidSession(request: NextRequest): Promise<boolean> {
@@ -34,9 +35,9 @@ export async function proxy(request: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
-  if (authenticated && isPublic) {
+  if (authenticated && AUTH_ENTRY_PATHS.includes(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/projects";
     return NextResponse.redirect(url);
   }
   return NextResponse.next();

@@ -66,7 +66,7 @@ export function SignupForm() {
     });
     if (result.error)
       setServerError(result.error.message ?? "Something went wrong");
-    else router.push("/"); // Better Auth signs the new user in automatically
+    else router.push("/projects"); // Better Auth signs the new user in automatically
   }
 
   return (

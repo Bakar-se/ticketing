@@ -26,7 +26,7 @@ export function ProjectView() {
 
   return (
     <main className="mx-auto max-w-xl space-y-4 p-6">
-      <Link className="text-sm underline" href="/">
+      <Link className="text-sm underline" href="/projects">
         ← Projects
       </Link>
       <h1 className="text-2xl font-semibold">Tickets</h1>

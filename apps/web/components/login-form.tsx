@@ -44,7 +44,7 @@ export function LoginForm() {
     });
     if (result.error)
       setServerError(result.error.message ?? "Something went wrong");
-    else router.push("/");
+    else router.push("/projects");
   }
 
   return (

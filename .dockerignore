@@ -12,3 +12,4 @@ docs
 k8s
 *.md
 cookies.txt
+/design
