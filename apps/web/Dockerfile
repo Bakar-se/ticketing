@@ -10,7 +10,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/auth/package.json apps/auth/
 COPY apps/notifications/package.json apps/notifications/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w apps/web
+RUN --mount=type=cache,target=/root/.npm npm ci -w apps/web
 
 FROM deps AS build
 # NEXT_PUBLIC_* values are baked into the browser JavaScript at BUILD time, so they are build args

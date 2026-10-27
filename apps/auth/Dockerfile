@@ -8,7 +8,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/auth/package.json apps/auth/
 COPY apps/notifications/package.json apps/notifications/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w apps/auth
+RUN --mount=type=cache,target=/root/.npm npm ci -w apps/auth
 
 FROM deps AS build
 COPY apps/auth apps/auth
@@ -27,7 +27,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/auth/package.json apps/auth/
 COPY apps/notifications/package.json apps/notifications/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w apps/auth --omit=dev
+RUN --mount=type=cache,target=/root/.npm npm ci -w apps/auth --omit=dev
 
 # Last stage = default build target
 FROM node:${NODE_VERSION}-alpine AS runtime

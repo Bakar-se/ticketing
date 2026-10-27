@@ -8,7 +8,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/auth/package.json apps/auth/
 COPY apps/notifications/package.json apps/notifications/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w apps/notifications
+RUN --mount=type=cache,target=/root/.npm npm ci -w apps/notifications
 
 FROM deps AS build
 COPY apps/notifications apps/notifications
@@ -22,7 +22,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/auth/package.json apps/auth/
 COPY apps/notifications/package.json apps/notifications/
 COPY apps/web/package.json apps/web/
-RUN npm ci -w apps/notifications --omit=dev
+RUN --mount=type=cache,target=/root/.npm npm ci -w apps/notifications --omit=dev
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production
