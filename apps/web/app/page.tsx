@@ -34,12 +34,6 @@ export default function LandingPage() {
               >
                 Sign up
               </Link>
-              <Link
-                href="/projects"
-                className={cn(buttonVariants({ variant: "link" }), "h-auto")}
-              >
-                Go to projects
-              </Link>
             </div>
           </div>
         </div>
