@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import { Redis } from "ioredis";
 import nodemailer from "nodemailer";
+import { startAuthEmailWorker } from "./auth-emails";
 
 // Same shape as the api's job. Deliberately duplicated: no shared package between services.
 // New fields are optional: jobs queued by an older api version may not have them.
@@ -72,6 +73,8 @@ worker.on("failed", (job, err) =>
   console.error(`job ${job?.id} failed: ${err.message}`),
 );
 console.log('notifications worker listening on queue "notifications"');
+
+const authWorker = startAuthEmailWorker(connection, transport);
 
 // Kubernetes sends SIGTERM when it stops a pod: finish the current job, then exit
 const shutdown = async () => {

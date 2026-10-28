@@ -80,39 +80,51 @@ export function SignupForm() {
       <div className="grid gap-2">
         <Label htmlFor="signup-name">Full name</Label>
         <Input
-          id="signup-name"
+          id="name"
+          aria-invalid={!!errors.name}
+          className="h-10"
           autoComplete="name"
           {...register("name")}
           placeholder="Your name"
         />
         {errors.name && (
-          <p className="text-sm text-destructive">{errors.name.message}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {errors.name.message}
+          </p>
         )}
       </div>
       <div className="grid gap-2">
         <Label htmlFor="signup-email">Email</Label>
         <Input
-          id="signup-email"
+          id="email"
           type="email"
+          aria-invalid={!!errors.email}
+          className="h-10"
           autoComplete="email"
           {...register("email")}
           placeholder="your@company.com"
         />
         {errors.email && (
-          <p className="text-sm text-destructive">{errors.email.message}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {errors.email.message}
+          </p>
         )}
       </div>
       <div className="grid gap-2">
         <Label htmlFor="signup-phone">Phone (optional)</Label>
         <Input
-          id="signup-phone"
+          id="phone"
+          aria-invalid={!!errors.phone}
+          className="h-10"
           type="tel"
           autoComplete="tel"
           {...register("phone")}
           placeholder="Enter your phone number"
         />
         {errors.phone && (
-          <p className="text-sm text-destructive">{errors.phone.message}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {errors.phone.message}
+          </p>
         )}
       </div>
       <div className="grid gap-2">
@@ -125,7 +137,9 @@ export function SignupForm() {
           placeholder="Enter your password"
         />
         {errors.password && (
-          <p className="text-sm text-destructive">{errors.password.message}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {errors.password.message}
+          </p>
         )}
       </div>
       <div className="grid gap-2">
@@ -138,12 +152,16 @@ export function SignupForm() {
           placeholder="Confirm your password"
         />
         {errors.confirmPassword && (
-          <p className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive">
             {errors.confirmPassword.message}
           </p>
         )}
       </div>
-      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+      {serverError && (
+        <p role="alert" className="text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
       <Button type="submit" disabled={isSubmitting}>
         Create account
       </Button>

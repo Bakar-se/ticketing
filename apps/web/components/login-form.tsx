@@ -58,30 +58,50 @@ export function LoginForm() {
       <div className="grid gap-2">
         <Label htmlFor="login-email">Email</Label>
         <Input
-          id="login-email"
+          id="email"
           type="email"
+          placeholder="you@company.com"
           autoComplete="email"
+          aria-invalid={!!errors.email}
+          className="h-10"
           {...register("email")}
-          placeholder="your@company.com"
         />
         {errors.email && (
-          <p className="text-sm text-destructive">{errors.email.message}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {errors.email.message}
+          </p>
         )}
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="login-password">Password</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Password</Label>
+          <Link
+            href="/forgot-password"
+            className="text-[13px] text-muted-foreground hover:text-foreground"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <Input
-          id="login-password"
+          id="password"
           type="password"
           autoComplete="current-password"
+          aria-invalid={!!errors.password}
+          className="h-10"
           {...register("password")}
           placeholder="Enter your password"
         />
         {errors.password && (
-          <p className="text-sm text-destructive">{errors.password.message}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {errors.password.message}
+          </p>
         )}
       </div>
-      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+      {serverError && (
+        <p role="alert" className="text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
       <Button type="submit" disabled={isSubmitting}>
         Sign in
       </Button>

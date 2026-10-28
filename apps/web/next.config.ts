@@ -16,6 +16,16 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Proxy auth calls so the browser only ever talks to the web origin.
+  // The destination is read at BUILD time (see below).
+  async rewrites() {
+    return [
+      {
+        source: "/api/auth/:path*",
+        destination: `${process.env.AUTH_URL ?? "http://localhost:3001"}/api/auth/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

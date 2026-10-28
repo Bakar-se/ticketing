@@ -4,7 +4,13 @@ const AUTH_URL =
   process.env.AUTH_INTERNAL_URL ??
   process.env.NEXT_PUBLIC_AUTH_URL ??
   "http://localhost:4001";
-const PUBLIC_PATHS = ["/", "/signin", "/signup"];
+const PUBLIC_PATHS = [
+  "/",
+  "/signin",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+];
 const AUTH_ENTRY_PATHS = ["/signin", "/signup"];
 
 // Ask the auth service whether this cookie is a real, unexpired session
