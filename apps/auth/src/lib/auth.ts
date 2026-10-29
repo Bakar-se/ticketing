@@ -41,7 +41,7 @@ export const auth = betterAuth({
   plugins: [expo()], // lets native apps authenticate
   trustedOrigins: [
     process.env.WEB_ORIGIN!,
-    "ticketing://", // deep-link scheme of the mobile app (used by standalone builds)
+    "Trackbit://", // deep-link scheme of the mobile app (used by standalone builds)
     // Expo Go connects as exp://<laptop-ip>:8081. Trust that only in development.
     ...(process.env.EXPO_DEV === "true" ? ["exp://**"] : []),
   ],

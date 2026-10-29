@@ -6,8 +6,8 @@ export const authClient = createAuthClient({
   baseURL: process.env.EXPO_PUBLIC_AUTH_URL!,
   plugins: [
     expoClient({
-      scheme: "ticketing",
-      storagePrefix: "ticketing",
+      scheme: "Trackbit",
+      storagePrefix: "Trackbit",
       storage: SecureStore, // the session cookie lives in the iOS keychain
     }),
   ],

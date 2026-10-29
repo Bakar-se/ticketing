@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trackbit — A focused issue tracker",
+  title: "Trackbit — A focused issue tracker for independent builders",
   description:
     "Plan, track and ship work without the Jira overhead. Trackbit is a focused issue tracker for independent builders.",
   openGraph: {
