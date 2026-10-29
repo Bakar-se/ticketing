@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,6 +10,21 @@ import {
   UpdateProjectInput,
 } from './projects.schemas.js';
 import { toDate } from '../common/date.js';
+
+type Counts = {
+  backlog: number;
+  todo: number;
+  inProgress: number;
+  done: number;
+};
+
+// ADAPT: the keys on the left must match your ticket status enum values exactly
+const STATUS_KEY: Record<string, keyof Counts> = {
+  BACKLOG: 'backlog',
+  TODO: 'todo',
+  IN_PROGRESS: 'inProgress',
+  DONE: 'done',
+};
 
 @Injectable()
 export class ProjectsService {
@@ -34,14 +48,46 @@ export class ProjectsService {
     });
   }
 
-  findAll(userId: string, query: ListProjectsQuery) {
-    return this.prisma.project.findMany({
+  async findAll(userId: string, query: ListProjectsQuery) {
+    const projects = await this.prisma.project.findMany({
       where: {
         createdById: userId,
         archivedAt: query.archived === 'true' ? { not: null } : null,
       },
       orderBy: { createdAt: 'desc' },
     });
+    if (projects.length === 0) return [];
+
+    // One grouped query for ALL projects, not one count query per project
+    const grouped = await this.prisma.ticket.groupBy({
+      by: ['projectId', 'status'],
+      where: { projectId: { in: projects.map((p) => p.id) } },
+      _count: { _all: true },
+    });
+
+    const byProject = new Map<string, Counts>();
+    for (const g of grouped) {
+      const key = STATUS_KEY[g.status];
+      if (!key) continue; // ignore a status we don't chart, instead of corrupting the counts
+      const c = byProject.get(g.projectId) ?? {
+        backlog: 0,
+        todo: 0,
+        inProgress: 0,
+        done: 0,
+      };
+      c[key] = g._count._all;
+      byProject.set(g.projectId, c);
+    }
+
+    return projects.map((p) => ({
+      ...p,
+      counts: byProject.get(p.id) ?? {
+        backlog: 0,
+        todo: 0,
+        inProgress: 0,
+        done: 0,
+      },
+    }));
   }
 
   // Scoped to the owner: someone else's id looks like "not found"

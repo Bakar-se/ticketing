@@ -57,7 +57,7 @@ const worker = new Worker<NotificationJob>(
   async (job) => {
     const { subject, text } = buildEmail(job.data);
     await transport.sendMail({
-      from: process.env.MAIL_FROM ?? "tickets@example.local",
+      from: process.env.MAIL_FROM ?? "tickets@trackbit.local",
       to: job.data.recipientEmail,
       subject,
       text,

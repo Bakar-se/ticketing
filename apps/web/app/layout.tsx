@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
+import { QueryProvider } from "@/components/query-provider";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -16,11 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ticketing — A focused issue tracker",
+  title: "Trackbit — A focused issue tracker",
   description:
-    "Plan, track and ship work without the Jira overhead. Ticketing is a focused issue tracker for independent builders.",
+    "Plan, track and ship work without the Jira overhead. Trackbit is a focused issue tracker for independent builders.",
   openGraph: {
-    title: "Ticketing — A focused issue tracker",
+    title: "Trackbit — A focused issue tracker",
     description: "Plan, track and ship work without the Jira overhead.",
     type: "website",
   },
@@ -57,7 +58,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         inter.variable,
       )}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

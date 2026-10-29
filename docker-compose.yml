@@ -131,7 +131,7 @@ services:
       REDIS_URL: redis://redis:6379
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
-      MAIL_FROM: tickets@example.local
+      MAIL_FROM: tickets@trackbit.local
     depends_on:
       redis:
         condition: service_healthy

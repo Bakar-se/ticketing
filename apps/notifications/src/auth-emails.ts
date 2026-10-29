@@ -34,7 +34,7 @@ export function startAuthEmailWorker(
     async (job) => {
       const { subject, text } = buildAuthEmail(job.data);
       await transport.sendMail({
-        from: process.env.MAIL_FROM ?? "tickets@example.local",
+        from: process.env.MAIL_FROM ?? "tickets@trackbit.local",
         to: job.data.recipientEmail,
         subject,
         text,

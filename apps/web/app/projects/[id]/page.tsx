@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { ProjectView } from "../../../components/project-view";
+import { ProjectBoard } from "@/components/project-board";
 
 export default function Page() {
-  return (
-    <Suspense fallback={<main className="p-6">Loading…</main>}>
-      <ProjectView />
-    </Suspense>
-  );
+  return <ProjectBoard />;
 }

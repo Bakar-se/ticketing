@@ -1,4 +1,4 @@
-# Ticketing
+# Trackbit
 
 A small Jira-like app for projects, tickets, and comments, used as a vehicle to learn Docker and Kubernetes from local Compose through a k3s cluster.
 

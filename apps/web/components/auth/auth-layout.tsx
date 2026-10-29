@@ -12,7 +12,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
           <span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Check className="size-4" />
           </span>
-          Ticketing
+          Trackbit
         </Link>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-sm">{children}</div>

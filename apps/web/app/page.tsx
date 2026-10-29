@@ -68,7 +68,7 @@ function Logo() {
       <span className="grid size-7 place-items-center rounded-[8px] bg-[#1447E6] text-white">
         <Check size={16} strokeWidth={3} />
       </span>
-      Ticketing
+      Trackbit
     </a>
   );
 }
@@ -281,7 +281,7 @@ export default function Page() {
             Structure for the work that matters.
           </h2>
           <p className="section-copy">
-            Ticketing keeps the useful parts of issue tracking and leaves the
+            Trackbit keeps the useful parts of issue tracking and leaves the
             overhead behind.
           </p>
         </div>
@@ -415,7 +415,7 @@ export default function Page() {
               </span>
               <div>
                 <p className="text-xs text-white/45">New ticket created</p>
-                <p className="mt-1 text-sm font-medium text-white">Ticketing</p>
+                <p className="mt-1 text-sm font-medium text-white">Trackbit</p>
               </div>
             </div>
             <div className="py-6">
@@ -494,7 +494,7 @@ export default function Page() {
             <p className="eyebrow">On the go</p>
             <h2 className="section-title">Your work, wherever you are.</h2>
             <p className="section-copy">
-              The Ticketing mobile app is in early access.
+              The Trackbit mobile app is in early access.
             </p>
             <span className="mt-5 inline-flex rounded-full bg-[#1447E6]/10 px-3 py-1 text-xs font-medium text-[#1447E6]">
               Early access
@@ -533,8 +533,8 @@ export default function Page() {
         <div className="mt-10 divide-y divide-black/10 border-y border-black/10">
           {[
             [
-              "What is Ticketing?",
-              "Ticketing is a lightweight, Jira-style issue tracker for solo developers, indie hackers, freelancers, and small dev projects.",
+              "What is Trackbit?",
+              "Trackbit is a lightweight, Jira-style issue tracker for solo developers, indie hackers, freelancers, and small dev projects.",
             ],
             [
               "How are ticket IDs created?",
@@ -550,7 +550,7 @@ export default function Page() {
             ],
             [
               "How do notifications work?",
-              "Ticketing sends an email when tickets or comments are created.",
+              "Trackbit sends an email when tickets or comments are created.",
             ],
             [
               "Is there a mobile app?",
@@ -558,7 +558,7 @@ export default function Page() {
             ],
             [
               "Can I invite teammates?",
-              "Not yet. Ticketing is single-user today.",
+              "Not yet. Trackbit is single-user today.",
             ],
           ].map(([q, a]) => (
             <details key={q} className="group py-5">
@@ -605,7 +605,7 @@ export default function Page() {
             <a href={APP_URL.signup} className="hover:text-white">
               Sign up
             </a>
-            <span>© Ticketing</span>
+            <span>© Trackbit</span>
           </div>
         </div>
       </footer>

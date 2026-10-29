@@ -8,7 +8,7 @@ export const createProjectSchema = z.object({
     .trim()
     .toUpperCase()
     .regex(/^[A-Z]{2,5}$/, 'Key must be 2 to 5 letters'),
-  description: z.string().trim().max(2000).optional(),
+  description: z.string().trim().max(500).optional(),
   targetDate: dateOnly.optional(),
 });
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
