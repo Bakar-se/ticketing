@@ -15,9 +15,11 @@ import { TicketsService } from './tickets.service.js';
 import {
   createTicketSchema,
   listTicketsSchema,
+  reorderTicketsSchema,
   updateTicketSchema,
   type CreateTicketInput,
   type ListTicketsQuery,
+  type ReorderTicketsInput,
   type UpdateTicketInput,
 } from './tickets.schemas.js';
 
@@ -41,6 +43,15 @@ export class TicketsController {
     @Query(new ZodPipe(listTicketsSchema)) query: ListTicketsQuery,
   ) {
     return this.tickets.findAll(user.id, projectId, query);
+  }
+
+  @Patch('projects/:projectId/tickets/reorder')
+  reorder(
+    @CurrentUser() user: SessionUser,
+    @Param('projectId') projectId: string,
+    @Body(new ZodPipe(reorderTicketsSchema)) body: ReorderTicketsInput,
+  ) {
+    return this.tickets.reorder(user.id, projectId, body.ids);
   }
 
   @Get('tickets/:id')

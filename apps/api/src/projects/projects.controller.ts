@@ -30,7 +30,7 @@ export class ProjectsController {
     @CurrentUser() user: SessionUser,
     @Body(new ZodPipe(createProjectSchema)) body: CreateProjectInput,
   ) {
-    return this.projects.create(user.id, body);
+    return this.projects.create(user, body);
   }
 
   @Get()
@@ -39,6 +39,11 @@ export class ProjectsController {
     @Query(new ZodPipe(listProjectsSchema)) query: ListProjectsQuery,
   ) {
     return this.projects.findAll(user.id, query);
+  }
+
+  @Get(':id/members')
+  members(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.projects.members(user, id);
   }
 
   @Get(':id')

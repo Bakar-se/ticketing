@@ -30,15 +30,28 @@ export const updateTicketSchema = z.object({
   priority: priority.optional(),
   storyPoints: storyPoints.nullable().optional(),
   dueDate: dateOnly.nullable().optional(),
+  assigneeId: z.string().trim().min(1).nullable().optional(),
 });
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
+
+export const reorderTicketsSchema = z.object({
+  ids: z.array(z.string().trim().min(1)).min(1).max(1000),
+});
+export type ReorderTicketsInput = z.infer<typeof reorderTicketsSchema>;
 
 export const listTicketsSchema = z.object({
   status: status.optional(),
   priority: priority.optional(),
   q: z.string().trim().max(100).optional(),
   sort: z
-    .enum(['number', 'createdAt', 'dueDate', 'priority', 'storyPoints'])
+    .enum([
+      'number',
+      'createdAt',
+      'dueDate',
+      'priority',
+      'storyPoints',
+      'position',
+    ])
     .default('number'),
   order: z.enum(['asc', 'desc']).default('desc'),
   page: z.coerce.number().int().min(1).default(1),

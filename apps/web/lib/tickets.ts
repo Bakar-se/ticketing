@@ -32,6 +32,13 @@ export const PRIORITY_LABEL: Record<TicketPriority, string> = {
   URGENT: "Urgent",
 };
 
+export const PRIORITY_CLASS: Record<TicketPriority, string> = {
+  URGENT: "bg-red-500/10 text-red-600 dark:text-red-400",
+  HIGH: "bg-red-500/10 text-red-500 dark:text-red-300",
+  MEDIUM: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  LOW: "bg-muted text-muted-foreground",
+};
+
 export type Ticket = {
   id: string;
   ticketKey: string;
@@ -41,6 +48,8 @@ export type Ticket = {
   priority: TicketPriority;
   storyPoints: number | null;
   dueDate: string | null;
+  assigneeId: string | null;
+  position: number;
   projectId: string;
 };
 

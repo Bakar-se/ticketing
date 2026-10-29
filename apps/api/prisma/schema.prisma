@@ -35,8 +35,23 @@ model Project {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   tickets       Ticket[]
+  members       ProjectMember[]
 
   @@index([createdById])
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  name      String
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, userId])
+  @@index([projectId])
 }
 
 model Ticket {
@@ -48,6 +63,8 @@ model Ticket {
   priority    TicketPriority @default(MEDIUM)
   storyPoints Int?
   dueDate     DateTime?      @db.Date
+  assigneeId  String?
+  position    Int            @default(0)
   projectId   String
   project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdById String
@@ -58,6 +75,7 @@ model Ticket {
   @@unique([projectId, number])
   @@index([projectId])
   @@index([projectId, status])
+  @@index([projectId, status, position])
   @@index([createdById])
 }
 

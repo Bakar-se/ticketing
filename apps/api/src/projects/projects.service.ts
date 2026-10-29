@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { SessionUser } from '../auth/auth.guard.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateProjectInput,
@@ -30,7 +31,7 @@ const STATUS_KEY: Record<string, keyof Counts> = {
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, input: CreateProjectInput) {
+  async create(user: SessionUser, input: CreateProjectInput) {
     // Keys are globally unique in this app. (A multi-tenant product would scope them per workspace.)
     const taken = await this.prisma.project.findUnique({
       where: { key: input.key },
@@ -43,7 +44,14 @@ export class ProjectsService {
         name: input.name,
         description: input.description,
         targetDate: toDate(input.targetDate),
-        createdById: userId,
+        createdById: user.id,
+        members: {
+          create: {
+            userId: user.id,
+            name: user.name,
+            email: user.email,
+          },
+        },
       },
     });
   }
@@ -88,6 +96,25 @@ export class ProjectsService {
         done: 0,
       },
     }));
+  }
+
+  async members(user: SessionUser, id: string) {
+    await this.findOne(user.id, id);
+    await this.prisma.projectMember.upsert({
+      where: { projectId_userId: { projectId: id, userId: user.id } },
+      create: {
+        projectId: id,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+      },
+      update: { name: user.name, email: user.email },
+    });
+    return this.prisma.projectMember.findMany({
+      where: { projectId: id },
+      orderBy: { name: 'asc' },
+      select: { userId: true, name: true, email: true },
+    });
   }
 
   // Scoped to the owner: someone else's id looks like "not found"

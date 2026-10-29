@@ -33,12 +33,12 @@ import { Input } from "@/components/ui/input";
 import { api, queryKeys } from "@/lib/api";
 import {
   BOARD_COLUMNS,
+  PRIORITY_CLASS,
   PRIORITY_LABEL,
   isBoardStatus,
   ticketMeta,
   type BoardStatus,
   type Ticket,
-  type TicketPriority,
   type TicketStatus,
 } from "@/lib/tickets";
 import { cn } from "cn";
@@ -46,13 +46,6 @@ import { cn } from "cn";
 type BoardData = {
   items: Ticket[];
   truncated: boolean;
-};
-
-const PRIORITY_CLASS: Record<TicketPriority, string> = {
-  URGENT: "bg-red-500/10 text-red-600 dark:text-red-400",
-  HIGH: "bg-red-500/10 text-red-500 dark:text-red-300",
-  MEDIUM: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  LOW: "bg-muted text-muted-foreground",
 };
 
 const collisionDetection: CollisionDetection = (args) => {

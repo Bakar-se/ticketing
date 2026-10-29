@@ -32,15 +32,17 @@ function orderByFor(query: ListTicketsQuery) {
   const dir = query.order;
   switch (query.sort) {
     case 'dueDate':
-      return { dueDate: { sort: dir, nulls: 'last' as const } };
+      return [{ dueDate: { sort: dir, nulls: 'last' as const } }];
     case 'storyPoints':
-      return { storyPoints: { sort: dir, nulls: 'last' as const } };
+      return [{ storyPoints: { sort: dir, nulls: 'last' as const } }];
     case 'priority':
-      return { priority: dir };
+      return [{ priority: dir }];
     case 'createdAt':
-      return { createdAt: dir };
+      return [{ createdAt: dir }];
+    case 'position':
+      return [{ position: dir }, { number: 'asc' as const }];
     default:
-      return { number: dir };
+      return [{ number: dir }];
   }
 }
 
@@ -85,6 +87,11 @@ export class TicketsService {
         data: { ticketCounter: { increment: 1 } },
         select: { ticketCounter: true },
       });
+      const status = input.status ?? TicketStatus.BACKLOG;
+      const max = await tx.ticket.aggregate({
+        where: { projectId, status },
+        _max: { position: true },
+      });
       return tx.ticket.create({
         data: {
           number: ticketCounter,
@@ -94,6 +101,7 @@ export class TicketsService {
           priority: input.priority,
           storyPoints: input.storyPoints,
           dueDate: toDate(input.dueDate),
+          position: (max._max.position ?? -1) + 1,
           projectId,
           createdById: user.id,
         },
@@ -160,7 +168,32 @@ export class TicketsService {
   }
 
   async update(userId: string, id: string, input: UpdateTicketInput) {
-    await this.owned(userId, id);
+    const existing = await this.owned(userId, id);
+    if (input.assigneeId) {
+      const member = await this.prisma.projectMember.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: existing.projectId,
+            userId: input.assigneeId,
+          },
+        },
+      });
+      if (!member) {
+        throw new BadRequestException(
+          'Assignee is not a member of this project',
+        );
+      }
+    }
+
+    let position: number | undefined;
+    if (input.status && input.status !== existing.status) {
+      const max = await this.prisma.ticket.aggregate({
+        where: { projectId: existing.projectId, status: input.status },
+        _max: { position: true },
+      });
+      position = (max._max.position ?? -1) + 1;
+    }
+
     const ticket = await this.prisma.ticket.update({
       where: { id },
       data: {
@@ -170,10 +203,39 @@ export class TicketsService {
         priority: input.priority,
         storyPoints: input.storyPoints,
         dueDate: toDate(input.dueDate),
+        assigneeId: input.assigneeId,
+        position,
       },
       include: withProjectKey,
     });
     return present(ticket);
+  }
+
+  async reorder(userId: string, projectId: string, ids: string[]) {
+    await this.ownedProject(userId, projectId);
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException('Ticket ids must be unique');
+    }
+
+    const tickets = await this.prisma.ticket.findMany({
+      where: { projectId, status: TicketStatus.BACKLOG },
+      select: { id: true },
+    });
+    const current = new Set(tickets.map((ticket) => ticket.id));
+    const sameSet =
+      ids.length === current.size && ids.every((id) => current.has(id));
+    if (!sameSet) {
+      throw new BadRequestException(
+        'Reorder must include every backlog ticket',
+      );
+    }
+
+    await this.prisma.$transaction(
+      ids.map((id, position) =>
+        this.prisma.ticket.update({ where: { id }, data: { position } }),
+      ),
+    );
+    return { ids };
   }
 
   async remove(userId: string, id: string) {
