@@ -34,6 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTicketChrome } from "@/components/ticket-chrome";
 import { ApiError, api, queryKeys } from "@/lib/api";
 import type { Project } from "@/lib/projects";
 import { cn } from "cn";
@@ -78,7 +79,8 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
     null,
   );
   const [createOpen, setCreateOpen] = useState(false);
-  const section = sectionFromPath(pathname);
+  const { chrome } = useTicketChrome();
+  const section = chrome?.section ?? sectionFromPath(pathname);
   const sectionLabel =
     SECTIONS.find((item) => item.id === section)?.label ?? "Board";
 
@@ -285,7 +287,24 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
               <li aria-hidden="true" className="text-muted-foreground">
                 /
               </li>
-              <li className="shrink-0 font-medium">{sectionLabel}</li>
+              {chrome ? (
+                <>
+                  <li className="shrink-0">
+                    <Link
+                      href={sectionHref(section, id)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      {sectionLabel}
+                    </Link>
+                  </li>
+                  <li aria-hidden="true" className="text-muted-foreground">
+                    /
+                  </li>
+                  <li className="shrink-0 font-medium">{chrome.ticketKey}</li>
+                </>
+              ) : (
+                <li className="shrink-0 font-medium">{sectionLabel}</li>
+              )}
             </ol>
           </nav>
           <ProfileMenu />

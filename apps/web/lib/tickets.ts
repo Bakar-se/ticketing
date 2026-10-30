@@ -51,10 +51,24 @@ export type Ticket = {
   assigneeId: string | null;
   position: number;
   projectId: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export function isBoardStatus(status: string): status is BoardStatus {
   return BOARD_COLUMNS.some((column) => column.status === status);
+}
+
+export function ticketPath(ticket: Pick<Ticket, "id" | "projectId">) {
+  return `/projects/${ticket.projectId}/tickets/${ticket.id}`;
+}
+
+export function formatCreated(iso: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(iso));
 }
 
 export function formatDue(value: string | null) {

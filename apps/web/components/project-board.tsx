@@ -37,6 +37,7 @@ import {
   PRIORITY_LABEL,
   isBoardStatus,
   ticketMeta,
+  ticketPath,
   type BoardStatus,
   type Ticket,
   type TicketStatus,
@@ -59,7 +60,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
     <article className="rounded-lg border bg-card p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <Link
-          href={`/tickets/${ticket.id}`}
+          href={ticketPath(ticket)}
           className="font-mono text-xs text-muted-foreground hover:text-foreground"
         >
           {ticket.ticketKey}
@@ -74,7 +75,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
         </span>
       </div>
       <Link
-        href={`/tickets/${ticket.id}`}
+        href={ticketPath(ticket)}
         className="mt-2 block text-sm font-medium leading-5"
       >
         {ticket.title}

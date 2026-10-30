@@ -50,6 +50,7 @@ import {
   PRIORITY_LABEL,
   TICKET_PRIORITIES,
   formatDue,
+  ticketPath,
   type Ticket,
   type TicketPriority,
 } from "@/lib/tickets";
@@ -127,13 +128,13 @@ function BacklogRow({
         <GripVertical className="size-4" />
       </button>
       <Link
-        href={`/tickets/${ticket.id}`}
+        href={ticketPath(ticket)}
         className="w-16 shrink-0 font-mono text-xs text-muted-foreground hover:text-foreground"
       >
         {ticket.ticketKey}
       </Link>
       <Link
-        href={`/tickets/${ticket.id}`}
+        href={ticketPath(ticket)}
         className="min-w-0 flex-1 truncate text-sm hover:underline"
       >
         {ticket.title}
@@ -192,7 +193,7 @@ function BacklogRow({
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem
             className="min-h-10"
-            render={<Link href={`/tickets/${ticket.id}`} />}
+            render={<Link href={ticketPath(ticket)} />}
           >
             Open
           </DropdownMenuItem>
