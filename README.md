@@ -15,11 +15,11 @@ A signed-in user creates a project with a short key such as `WEB`. Tickets in th
 - Comment on a ticket
 - Email the owner when a ticket is created, a comment is added, or a password reset is requested
 
-An Expo client in `apps/mobile` signs in against the same auth service and lists projects. It is a thin companion app, not part of the Compose stack.
+An Expo client in `apps/mobile` signs in and lists projects through the same public origin. Set `EXPO_PUBLIC_AUTH_URL` to that origin and `EXPO_PUBLIC_API_URL` to `<origin>/backend`. It is a thin companion app, not part of the Compose stack.
 
 ## Architecture
 
-Four application processes share Postgres and Redis. The browser talks to three of them. The notifications process has no HTTP port; it only consumes queues.
+Four application processes share Postgres and Redis. The browser talks only to `web`. Next.js forwards `/api/auth/*` to the auth service and `/backend/*` to the API, so auth and the API stay on the Docker network. The notifications process has no HTTP port; it only consumes queues.
 
 ```mermaid
 flowchart LR
@@ -33,9 +33,8 @@ flowchart LR
   Mail["SMTP · Mailpit"]
 
   Client --> Web
-  Client --> Auth
-  Client --> API
-  Web -->|"session check"| Auth
+  Web -->|"session check, /api/auth/*"| Auth
+  Web -->|"/backend/*"| API
   API -->|"get-session"| Auth
   Auth --> AuthDB[("auth_db")]
   API --> TicketsDB[("tickets_db")]
@@ -54,7 +53,7 @@ One Postgres instance holds two databases, created at first boot by `infra/postg
 Creating a ticket shows how the pieces meet:
 
 1. The Next.js proxy asks auth whether the session cookie is still valid. Public pages (landing, sign-in, sign-up, password reset) skip that check. A signed-in visitor hitting `/signin` is sent to `/projects`. If auth cannot be reached, the proxy treats the visitor as signed out.
-2. The browser posts to the API with the same cookie (`withCredentials`).
+2. The browser posts to `/backend/...` on the same origin, with the same cookie (`withCredentials`). Next.js forwards that request to the API.
 3. A global NestJS guard forwards that cookie to `GET /api/auth/get-session` and attaches `{ id, email, name }` to the request. Routes opt out with a `@Public()` decorator. Health checks are public; everything else is not.
 4. A Zod pipe validates and strips the body at the controller. Unknown fields are dropped. Story points must be one of `1, 2, 3, 5, 8, 13`.
 5. Inside one transaction the API increments `Project.ticketCounter` and inserts the ticket with that number, so `WEB-12` cannot be issued twice.
@@ -67,7 +66,7 @@ Password reset follows the same queue, on a separate `auth-emails` channel. The 
 
 | Service | Owns | Talks to |
 | --- | --- | --- |
-| `web` | UI, route protection, client cache | Auth for the session; API for projects, tickets, and comments |
+| `web` | UI, route protection, client cache, proxy for `/api/auth` and `/backend` | Auth for the session; API for projects, tickets, and comments |
 | `auth` | Sign-up, sessions, password reset | `auth_db`; the `auth-emails` queue |
 | `api` | Projects, tickets, comments | `tickets_db`; auth for every protected request; the `notifications` queue |
 | `notifications` | Delivering mail | Redis; SMTP |
@@ -127,7 +126,7 @@ Every Dockerfile is multi-stage:
 
 Compose starts `auth-migrate` and `api-migrate` after Postgres is healthy, and starts `auth` and `api` only after those jobs succeed. Redis is started with `maxmemory-policy noeviction` so a full memory limit refuses writes instead of evicting queued jobs. HTTP services expose `/health` (the web image checks `/signin`) and Compose waits on those checks. The worker has no port; on `SIGTERM` it finishes the in-flight job and closes its Redis connection, which is the behavior a scheduler needs when it stops a container.
 
-The web image is Debian-based because Next and Tailwind ship glibc binaries. The others are Alpine. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_AUTH_URL` are build arguments, because the browser bundle is fixed at build time. The Next server uses `AUTH_INTERNAL_URL` (`http://auth:4001` on the Compose network) for its own session check, which is a different address from the one the browser uses.
+The web image is Debian-based because Next and Tailwind ship glibc binaries. The others are Alpine. Rewrite destinations are fixed when the web image is built: `AUTH_INTERNAL_URL` defaults to `http://auth:4001` and `API_INTERNAL_URL` defaults to `http://api:4000`. The running container also sets `AUTH_INTERNAL_URL` so `proxy.ts` can check the session over the Compose network. The browser never sees those addresses. It calls `/api/auth` and `/backend` on the web origin.
 
 ## Run it
 
@@ -139,28 +138,41 @@ cp .env.example .env
 docker compose up --build
 ```
 
+`PUBLIC_URL` is the origin the browser uses. It sets `BETTER_AUTH_URL` and `WEB_ORIGIN` on the auth service, including the origin of password-reset links. Leave it at `http://localhost:3000` for local Compose. For a public host, set `PUBLIC_URL=https://<one-domain>` so session cookies are marked `Secure`. `POSTGRES_PASSWORD` defaults to `postgres` when it is empty.
+
+The browser only needs the web origin. Auth and API routes on that origin are:
+
+| Path on the web origin | Forwarded to |
+| --- | --- |
+| `/api/auth/*` | auth service, same path |
+| `/backend/*` | API, with the `/backend` prefix removed |
+
+Published ports below are for local debugging. A production override can drop them so only the web origin is reachable.
+
 | URL | What |
 | --- | --- |
-| http://localhost:3000 | Web app |
-| http://localhost:4000 | API (`GET /health`) |
-| http://localhost:4001 | Auth (`GET /health`, Better Auth under `/api/auth`) |
+| http://localhost:3000 | Web app, and the only origin the browser should use |
+| http://localhost:3000/api/auth | Auth, through the web proxy |
+| http://localhost:3000/backend | API, through the web proxy (`GET /backend/health`) |
+| http://localhost:4000 | API, direct (`GET /health`) |
+| http://localhost:4001 | Auth, direct (`GET /health`) |
 | http://localhost:8025 | Mailpit, the inbox for notification and reset mail |
 | localhost:5432 | Postgres (`auth_db`, `tickets_db`) |
 | localhost:6379 | Redis |
 
 Sign up in the web app, create a project, add a ticket, and open Mailpit to see the message the worker sent.
 
-The Expo app is started on its own, against those same published ports:
+The Expo app is started on its own. Point it at the same origin:
 
 ```bash
 cd apps/mobile
 npm install
-npx expo start
+EXPO_PUBLIC_AUTH_URL=http://localhost:3000 EXPO_PUBLIC_API_URL=http://localhost:3000/backend npx expo start
 ```
 
 ## HTTP API
 
-All routes except `GET /health` require a session cookie. Bodies and list queries are validated with Zod.
+All routes except `GET /health` require a session cookie. Bodies and list queries are validated with Zod. The browser calls them under `/backend` (for example `GET /backend/projects`).
 
 | Method | Path | Purpose |
 | --- | --- | --- |

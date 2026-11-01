@@ -45,4 +45,7 @@ export const auth = betterAuth({
     // Expo Go connects as exp://<laptop-ip>:8081. Trust that only in development.
     ...(process.env.EXPO_DEV === "true" ? ["exp://**"] : []),
   ],
+  advanced: {
+    ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+  },
 });

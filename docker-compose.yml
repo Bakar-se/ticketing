@@ -3,7 +3,7 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_PASSWORD: postgres # dev-only credential; becomes a K8s Secret in Phase 2
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres} # dev-only credential; becomes a K8s Secret in Phase 2
     ports:
       - "5432:5432"
     volumes:
@@ -41,7 +41,7 @@ services:
       dockerfile: apps/auth/Dockerfile
       target: migrate
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/auth_db
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,10 +54,10 @@ services:
     restart: unless-stopped
     environment:
       PORT: "4001"
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/auth_db
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
-      BETTER_AUTH_URL: http://localhost:4001 # the public URL the browser uses
-      WEB_ORIGIN: http://localhost:3000
+      BETTER_AUTH_URL: ${PUBLIC_URL:-http://localhost:3000} # public origin the browser uses
+      WEB_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
       EXPO_DEV: "true" # dev only: trust Expo Go origins
       REDIS_URL: redis://redis:6379
     ports:
@@ -84,7 +84,7 @@ services:
       dockerfile: apps/api/Dockerfile
       target: migrate
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/tickets_db
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/tickets_db
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,7 +97,7 @@ services:
     restart: unless-stopped
     environment:
       PORT: "4000"
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/tickets_db
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/tickets_db
       AUTH_URL: http://auth:4001 # service-to-service call over the Compose network
       REDIS_URL: redis://redis:6379
     ports:
@@ -143,9 +143,6 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost:4000 # what the BROWSER calls
-        NEXT_PUBLIC_AUTH_URL: http://localhost:4001
     restart: unless-stopped
     environment:
       AUTH_INTERNAL_URL: http://auth:4001 # what the Next SERVER (proxy.ts) calls

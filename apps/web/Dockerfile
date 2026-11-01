@@ -13,11 +13,11 @@ COPY apps/web/package.json apps/web/
 RUN --mount=type=cache,target=/root/.npm npm ci -w apps/web
 
 FROM deps AS build
-# NEXT_PUBLIC_* values are baked into the browser JavaScript at BUILD time, so they are build args
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_AUTH_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    NEXT_PUBLIC_AUTH_URL=$NEXT_PUBLIC_AUTH_URL \
+# Rewrite destinations are compiled into the routes manifest at `next build`.
+ARG AUTH_INTERNAL_URL=http://auth:4001
+ARG API_INTERNAL_URL=http://api:4000
+ENV AUTH_INTERNAL_URL=$AUTH_INTERNAL_URL \
+    API_INTERNAL_URL=$API_INTERNAL_URL \
     NEXT_TELEMETRY_DISABLED=1
 COPY apps/web apps/web
 WORKDIR /repo/apps/web

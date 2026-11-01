@@ -16,14 +16,13 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  // Proxy auth calls so the browser only ever talks to the web origin.
-  // The destination is read at BUILD time (see below).
+  // Destinations are compiled into the routes manifest at `next build`.
   async rewrites() {
+    const auth = process.env.AUTH_INTERNAL_URL ?? "http://localhost:4001";
+    const api = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
     return [
-      {
-        source: "/api/auth/:path*",
-        destination: `${process.env.AUTH_URL ?? "http://localhost:3001"}/api/auth/:path*`,
-      },
+      { source: "/api/auth/:path*", destination: `${auth}/api/auth/:path*` },
+      { source: "/backend/:path*", destination: `${api}/:path*` },
     ];
   },
 };
