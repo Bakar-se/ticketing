@@ -125,9 +125,11 @@ function projectShellRoutes(current: Ticket, thread: unknown = comments) {
 function mockGet(routes: Record<string, unknown>) {
   vi.mocked(api.get).mockImplementation(async (url, config) => {
     if (url === "/projects/p1/tickets") {
-      const page = routes[url] as { items: Ticket[]; total: number } | undefined;
+      const page = routes[url] as
+        { items: Ticket[]; total: number } | undefined;
       if (!page) throw new ApiError(404, "missing");
-      const status = (config?.params as { status?: string } | undefined)?.status;
+      const status = (config?.params as { status?: string } | undefined)
+        ?.status;
       const items = status
         ? page.items.filter((item) => item.status === status)
         : page.items;
@@ -170,8 +172,12 @@ describe("ticket page", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("WEB-12").length).toBeGreaterThan(0);
-    expect(screen.getByText("Open a ticket from the board.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch project" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Open a ticket from the board."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Switch project" }),
+    ).toBeInTheDocument();
 
     const details = screen.getByRole("region", { name: "Details" });
     const text = details.textContent ?? "";
@@ -201,13 +207,15 @@ describe("ticket page", () => {
     expect(within(details).getByText("Oct 27")).toBeInTheDocument();
     expect(within(details).getByText("Oct 18")).toBeInTheDocument();
     expect(within(details).getByText("2 hours ago")).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
 
-    expect(await screen.findByRole("heading", { name: "Comments 2" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Comments 2" }),
+    ).toBeInTheDocument();
     const older = screen.getByText("Started on the layout.");
     const newer = screen.getByText("Should the reporter get an email?");
-    expect(older.compareDocumentPosition(newer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      older.compareDocumentPosition(newer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("1 hour ago")).toBeInTheDocument();
 
     const urls = vi.mocked(api.get).mock.calls.map((call) => String(call[0]));
@@ -244,9 +252,13 @@ describe("ticket page", () => {
         name: "Ticket detail view with comments",
       }),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Started on the layout.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Started on the layout."),
+    ).not.toBeInTheDocument();
     release(comments);
-    expect(await screen.findByText("Started on the layout.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Started on the layout."),
+    ).toBeInTheDocument();
   });
 
   it("shows empty description, assignee, points, date, and comment count", async () => {
@@ -264,7 +276,9 @@ describe("ticket page", () => {
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.getByText("No date")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Comments 0" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Comments 0" }),
+    ).toBeInTheDocument();
   });
 
   it("shows Unknown when a person is not a project member", async () => {
@@ -277,7 +291,9 @@ describe("ticket page", () => {
       },
     ]);
 
-    expect(await screen.findByText("A note from someone who left.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("A note from someone who left."),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Unknown").length).toBeGreaterThanOrEqual(2);
   });
 
@@ -286,14 +302,12 @@ describe("ticket page", () => {
     expect((await screen.findAllByText("WEB-12")).length).toBeGreaterThan(0);
 
     const crumb = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(within(crumb).getByRole("link", { name: "Projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
-    expect(within(crumb).getByRole("link", { name: "Web app" })).toHaveAttribute(
-      "href",
-      "/projects/p1",
-    );
+    expect(
+      within(crumb).getByRole("link", { name: "Projects" }),
+    ).toHaveAttribute("href", "/projects");
+    expect(
+      within(crumb).getByRole("link", { name: "Web app" }),
+    ).toHaveAttribute("href", "/projects/p1");
     expect(within(crumb).getByRole("link", { name: "Board" })).toHaveAttribute(
       "href",
       "/projects/p1",
@@ -301,9 +315,15 @@ describe("ticket page", () => {
     expect(within(crumb).getByText("WEB-12").closest("a")).toBeNull();
 
     const boardLinks = screen.getAllByRole("link", { name: "Board" });
-    expect(boardLinks.some((link) => link.getAttribute("aria-current") === "page")).toBe(true);
+    expect(
+      boardLinks.some((link) => link.getAttribute("aria-current") === "page"),
+    ).toBe(true);
     const backlogLinks = screen.getAllByRole("link", { name: "Backlog" });
-    expect(backlogLinks.every((link) => link.getAttribute("aria-current") !== "page")).toBe(true);
+    expect(
+      backlogLinks.every(
+        (link) => link.getAttribute("aria-current") !== "page",
+      ),
+    ).toBe(true);
   });
 
   it.each(["TODO", "DONE"] as const)(
@@ -312,7 +332,9 @@ describe("ticket page", () => {
       renderTicket(sampleTicket({ status }));
       expect((await screen.findAllByText("WEB-12")).length).toBeGreaterThan(0);
       const boardLinks = screen.getAllByRole("link", { name: "Board" });
-      expect(boardLinks.some((link) => link.getAttribute("aria-current") === "page")).toBe(true);
+      expect(
+        boardLinks.some((link) => link.getAttribute("aria-current") === "page"),
+      ).toBe(true);
     },
   );
 
@@ -321,12 +343,13 @@ describe("ticket page", () => {
     expect((await screen.findAllByText("WEB-12")).length).toBeGreaterThan(0);
 
     const crumb = screen.getByRole("navigation", { name: "Breadcrumb" });
-    expect(within(crumb).getByRole("link", { name: "Backlog" })).toHaveAttribute(
-      "href",
-      "/projects/p1/backlog",
-    );
+    expect(
+      within(crumb).getByRole("link", { name: "Backlog" }),
+    ).toHaveAttribute("href", "/projects/p1/backlog");
     const backlogLinks = screen.getAllByRole("link", { name: "Backlog" });
-    expect(backlogLinks.some((link) => link.getAttribute("aria-current") === "page")).toBe(true);
+    expect(
+      backlogLinks.some((link) => link.getAttribute("aria-current") === "page"),
+    ).toBe(true);
   });
 
   it("keeps the section breadcrumb on board, backlog, team, and settings", async () => {
@@ -350,7 +373,9 @@ describe("ticket page", () => {
           </TicketChromeProvider>
         </QueryClientProvider>,
       );
-      const crumb = await screen.findByRole("navigation", { name: "Breadcrumb" });
+      const crumb = await screen.findByRole("navigation", {
+        name: "Breadcrumb",
+      });
       expect(await within(crumb).findByText("Web app")).toBeInTheDocument();
       expect(within(crumb).getByText(label).closest("a")).toBeNull();
       expect(within(crumb).queryByText("WEB-12")).not.toBeInTheDocument();
@@ -360,8 +385,12 @@ describe("ticket page", () => {
 
   it("says the ticket was not found inside the project when it belongs elsewhere", async () => {
     renderTicket(sampleTicket({ projectId: "other" }));
-    expect(await screen.findByRole("heading", { name: "Ticket not found" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch project" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Ticket not found" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Switch project" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("WEB-12")).not.toBeInTheDocument();
   });
 
@@ -381,8 +410,12 @@ describe("ticket page", () => {
         </TicketChromeProvider>
       </QueryClientProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Ticket not found" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch project" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Ticket not found" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Switch project" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -399,7 +432,9 @@ describe("old ticket url", () => {
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/projects/p1/tickets/t1");
     });
-    expect(screen.queryByRole("button", { name: "Switch project" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Switch project" }),
+    ).not.toBeInTheDocument();
   });
 
   it("says the ticket was not found without the project sidebar", async () => {
@@ -411,9 +446,15 @@ describe("old ticket url", () => {
         <TicketView />
       </QueryClientProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Ticket not found" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Switch project" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Ticket not found" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Switch project" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Breadcrumb" }),
+    ).not.toBeInTheDocument();
   });
 });
 

@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PasswordInput } from "@/components/password-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
@@ -129,10 +130,10 @@ export function SignupForm() {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="signup-password">Password</Label>
-        <Input
+        <PasswordInput
           id="signup-password"
-          type="password"
           autoComplete="new-password"
+          aria-invalid={!!errors.password}
           {...register("password")}
           placeholder="Enter your password"
         />
@@ -144,10 +145,10 @@ export function SignupForm() {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="signup-confirm">Confirm password</Label>
-        <Input
+        <PasswordInput
           id="signup-confirm"
-          type="password"
           autoComplete="new-password"
+          aria-invalid={!!errors.confirmPassword}
           {...register("confirmPassword")}
           placeholder="Confirm your password"
         />

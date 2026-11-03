@@ -10,7 +10,7 @@ import { z } from "zod";
 import { CircleAlert } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 
 const schema = z.object({
@@ -92,13 +92,11 @@ export function ResetPasswordForm() {
       >
         <div className="grid gap-2">
           <Label htmlFor="password">New password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             placeholder="At least 8 characters"
             autoComplete="new-password"
             aria-invalid={!!errors.password}
-            className="h-10"
             {...register("password")}
           />
           {errors.password && (

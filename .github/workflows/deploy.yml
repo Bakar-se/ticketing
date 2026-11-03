@@ -1,0 +1,130 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --workspaces --if-present
+      - run: npx tsc --noEmit -p apps/web
+      - run: npx tsc --noEmit -p apps/auth
+      - run: npx tsc --noEmit -p apps/api
+      - run: npm test --workspace apps/web --if-present
+
+  build:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: web, dockerfile: apps/web/Dockerfile }
+          - { name: api, dockerfile: apps/api/Dockerfile }
+          - {
+              name: api-migrate,
+              dockerfile: apps/api/Dockerfile,
+              target: migrate,
+            }
+          - { name: auth, dockerfile: apps/auth/Dockerfile }
+          - {
+              name: auth-migrate,
+              dockerfile: apps/auth/Dockerfile,
+              target: migrate,
+            }
+          - { name: notifications, dockerfile: apps/notifications/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute names
+        run: |
+          echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+          echo "SHORT=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER }}/trackbit-${{ matrix.name }}:sha-${{ env.SHORT }}
+            ghcr.io/${{ env.OWNER }}/trackbit-${{ matrix.name }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, trackbit-prod]
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_DIR: /home/bakar/apps/ticketing
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Log in to GHCR
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull and restart
+        run: |
+          set -euo pipefail
+          cd "$DEPLOY_DIR"
+          git fetch --prune origin main
+          git reset --hard "$GITHUB_SHA"
+          TAG="sha-${GITHUB_SHA::7}"
+          touch .env
+          if grep -q '^TAG=' .env; then sed -i "s/^TAG=.*/TAG=$TAG/" .env; else echo "TAG=$TAG" >> .env; fi
+          docker compose pull
+          docker compose up -d --no-build --remove-orphans
+
+      - name: Wait for web
+        run: |
+          for i in $(seq 1 36); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3000/signin; then echo "web is up"; exit 0; fi
+            sleep 5
+          done
+          cd "$DEPLOY_DIR"
+          docker compose ps
+          docker compose logs --tail=50
+          exit 1
+
+      - name: Public smoke test
+        if: vars.PUBLIC_URL != ''
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "${{ vars.PUBLIC_URL }}/signin"
+
+      - name: Clean up
+        if: always()
+        run: |
+          docker image prune -f
+          docker logout ghcr.io
