@@ -12,4 +12,5 @@ cookies.txt
 **/.claude
 **/.windsurf
 **/.agents
+**/.grok
 **/skills-lock.json
