@@ -263,7 +263,7 @@ export function TicketPage() {
 
   return (
     <>
-    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="min-w-0">
         <p className="font-mono text-xs text-muted-foreground">
           {ticket.ticketKey}
@@ -443,6 +443,7 @@ export function TicketPage() {
             <FieldSelect
               label="Assignee"
               value={ticket.assigneeId ?? "unassigned"}
+              contentClassName="min-w-64"
               items={assigneeOptions}
               onValueChange={(value) => {
                 save.mutate({
@@ -451,20 +452,20 @@ export function TicketPage() {
               }}
             >
               {ticket.assigneeId && assigneeName ? (
-                <span className="flex items-center gap-2">
+                <span className="flex min-w-0 items-center gap-2">
                   <Initials name={assigneeName} />
-                  <SelectValue />
+                  <SelectValue className="truncate" />
                 </span>
               ) : (
-                <SelectValue />
+                <SelectValue className="truncate" />
               )}
             </FieldSelect>
           </Detail>
           <Detail label="Reporter">
             {reporterName ? (
-              <span className="flex items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
                 <Initials name={reporterName} />
-                {reporterName}
+                <span className="truncate">{reporterName}</span>
               </span>
             ) : null}
           </Detail>
@@ -578,6 +579,7 @@ function FieldSelect({
   items,
   onValueChange,
   triggerClassName,
+  contentClassName,
   children,
 }: {
   label: string;
@@ -585,6 +587,7 @@ function FieldSelect({
   items: { value: string; label: string }[];
   onValueChange: (value: string) => void;
   triggerClassName?: string;
+  contentClassName?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -597,11 +600,11 @@ function FieldSelect({
     >
       <SelectTrigger
         aria-label={label}
-        className={cn("h-8 w-auto", triggerClassName)}
+        className={cn("h-8 w-auto max-w-full", triggerClassName)}
       >
         {children ?? <SelectValue />}
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent align="end" className={contentClassName}>
         {items.map((item) => (
           <SelectItem key={item.value} value={item.value}>
             {item.label}
@@ -614,7 +617,7 @@ function FieldSelect({
 
 function Initials({ name }: { name: string }) {
   return (
-    <span className="flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">
+    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">
       {initials(name)}
     </span>
   );
@@ -629,8 +632,8 @@ function Detail({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>{children}</dd>
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0">{children}</dd>
     </div>
   );
 }

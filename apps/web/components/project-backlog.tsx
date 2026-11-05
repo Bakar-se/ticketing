@@ -526,7 +526,7 @@ export function ProjectBacklog() {
             <span className="text-muted-foreground">Assignee</span>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="start" className="min-w-64">
             {assigneeItems.map((item) => (
               <SelectItem key={item.value} value={item.value} className="min-h-10">
                 {item.label}
