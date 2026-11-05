@@ -1,9 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal } from "lucide-react";
 import { useTicketChrome } from "@/components/ticket-chrome";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -65,12 +80,18 @@ export function TicketPage() {
   const params = useParams<{ id: string; ticketId: string }>();
   const projectId = params.id;
   const ticketId = params.ticketId;
+  const router = useRouter();
   const { setChrome } = useTicketChrome();
   const queryClient = useQueryClient();
   const [saveError, setSaveError] = useState("");
   const [titleError, setTitleError] = useState("");
   const [editing, setEditing] = useState<"title" | "description" | null>(null);
   const [draft, setDraft] = useState("");
+  const [commentDraft, setCommentDraft] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const ticketQuery = useQuery({
     queryKey: queryKeys.ticket(ticketId),
@@ -112,6 +133,31 @@ export function TicketPage() {
     },
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKeys.ticket(ticketId), updated);
+    },
+  });
+
+  const postComment = useMutation({
+    mutationFn: async (body: string) =>
+      (await api.post<Comment>(`/tickets/${ticketId}/comments`, { body })).data,
+    onSuccess: (comment) => {
+      queryClient.setQueryData<Comment[]>(queryKeys.comments(ticketId), (current) => [
+        ...(current ?? []),
+        comment,
+      ]);
+      setCommentDraft("");
+    },
+  });
+
+  const removeTicket = useMutation({
+    mutationFn: async (destination: string) => {
+      await api.delete(`/tickets/${ticketId}`);
+      return destination;
+    },
+    onSuccess: (destination) => {
+      router.push(destination);
+    },
+    onError: () => {
+      setDeleteError("Couldn't delete that ticket. Please try again.");
     },
   });
 
@@ -191,42 +237,97 @@ export function TicketPage() {
     save.mutate({ description: next ? next : null });
   }
 
+  async function copyLink() {
+    if (!ticket) return;
+    setCopyError("");
+    setCopied(false);
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/projects/${projectId}/tickets/${ticket.id}`,
+      );
+      setCopied(true);
+    } catch {
+      setCopyError("Couldn't copy the link.");
+    }
+  }
+
+  function confirmDelete() {
+    if (!ticket) return;
+    setDeleteError("");
+    removeTicket.mutate(
+      ticket.status === "BACKLOG"
+        ? `/projects/${projectId}/backlog`
+        : `/projects/${projectId}`,
+    );
+  }
+
   return (
+    <>
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
       <div className="min-w-0">
         <p className="font-mono text-xs text-muted-foreground">
           {ticket.ticketKey}
         </p>
-        {editing === "title" ? (
-          <Input
-            aria-label="Title"
-            value={draft}
-            autoFocus
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-            }}
-            className="mt-1 h-auto py-1 text-2xl font-semibold md:text-2xl"
-          />
-        ) : (
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            <button
-              type="button"
-              className="text-left"
-              onClick={() => {
-                setTitleError("");
-                setDraft(ticket.title);
-                setEditing("title");
+        <div className="mt-1 flex items-start justify-between gap-3">
+          {editing === "title" ? (
+            <Input
+              aria-label="Title"
+              value={draft}
+              autoFocus
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                }
               }}
-            >
-              {ticket.title}
-            </button>
-          </h1>
-        )}
+              className="h-auto py-1 text-2xl font-semibold md:text-2xl"
+            />
+          ) : (
+            <h1 className="text-2xl font-semibold tracking-tight">
+              <button
+                type="button"
+                className="text-left"
+                onClick={() => {
+                  setTitleError("");
+                  setDraft(ticket.title);
+                  setEditing("title");
+                }}
+              >
+                {ticket.title}
+              </button>
+            </h1>
+          )}
+          <div className="flex items-center gap-2">
+            {copied ? (
+              <span className="text-sm text-muted-foreground">Link copied</span>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label={`Actions for ${ticket.ticketKey}`}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem className="min-h-10" onClick={copyLink}>
+                  Copy link
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="min-h-10"
+                  variant="destructive"
+                  onClick={() => {
+                    setDeleteError("");
+                    setDeleteOpen(true);
+                  }}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
         {titleError ? (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {titleError}
@@ -235,6 +336,11 @@ export function TicketPage() {
         {saveError ? (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {saveError}
+          </p>
+        ) : null}
+        {copyError ? (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            {copyError}
           </p>
         ) : null}
         <h2 className="mt-6 text-sm font-semibold">Description</h2>
@@ -272,7 +378,8 @@ export function TicketPage() {
             Couldn&apos;t load comments.
           </p>
         ) : (
-          <ul className="mt-4 space-y-4">
+          <>
+          <ul aria-label="Comments" className="mt-4 space-y-4">
             {comments.map((comment) => {
               const name = personName(members, comment.createdById) ?? "";
               return (
@@ -295,6 +402,24 @@ export function TicketPage() {
               );
             })}
           </ul>
+          <div className="mt-4 flex flex-col items-start gap-2">
+            <textarea
+              aria-label="Write a comment..."
+              placeholder="Write a comment..."
+              value={commentDraft}
+              rows={3}
+              onChange={(event) => setCommentDraft(event.target.value)}
+              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+            <Button
+              type="button"
+              disabled={commentDraft.trim().length === 0 || postComment.isPending}
+              onClick={() => postComment.mutate(commentDraft.trim())}
+            >
+              Comment
+            </Button>
+          </div>
+          </>
         )}
       </div>
       <section aria-label="Details" className="rounded-lg border p-4 text-sm">
@@ -405,6 +530,45 @@ export function TicketPage() {
         </dl>
       </section>
     </div>
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open && !removeTicket.isPending) setDeleteOpen(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete ticket</DialogTitle>
+            <DialogDescription>
+              {ticket.ticketKey} will be deleted, including its comments.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError ? (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={removeTicket.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={removeTicket.isPending}
+              onClick={confirmDelete}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

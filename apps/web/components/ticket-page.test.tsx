@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectBacklog } from "@/components/project-backlog";
 import { ProjectBoard } from "@/components/project-board";
@@ -10,8 +11,9 @@ import { TicketView } from "@/components/ticket-view";
 import { ApiError, api, makeQueryClient } from "@/lib/api";
 import type { Ticket } from "@/lib/tickets";
 
-const { replace, route } = vi.hoisted(() => ({
+const { replace, push, route } = vi.hoisted(() => ({
   replace: vi.fn(),
+  push: vi.fn(),
   route: {
     params: {} as Record<string, string>,
     pathname: "/projects/p1",
@@ -21,7 +23,7 @@ const { replace, route } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useParams: () => route.params,
   usePathname: () => route.pathname,
-  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ replace, push, refresh: vi.fn() }),
 }));
 
 vi.mock("next/link", () => ({
@@ -157,8 +159,16 @@ function renderTicket(current = sampleTicket(), thread: unknown = comments) {
   );
 }
 
+function savedTicket(patch: Partial<Ticket>, current = sampleTicket()) {
+  return { data: { ...current, ...patch } };
+}
+
 beforeEach(() => {
   replace.mockReset();
+  push.mockReset();
+  vi.mocked(api.patch).mockReset();
+  vi.mocked(api.post).mockReset();
+  vi.mocked(api.delete).mockReset();
   vi.spyOn(Date, "now").mockReturnValue(NOW);
 });
 
@@ -415,6 +425,346 @@ describe("ticket page", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Switch project" }),
+    ).toBeInTheDocument();
+  });
+
+  it("saves a status change and highlights Backlog", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockResolvedValue(savedTicket({ status: "BACKLOG" }));
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(await screen.findByRole("option", { name: "Backlog" }));
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { status: "BACKLOG" });
+    });
+    const backlogLinks = screen.getAllByRole("link", { name: "Backlog" });
+    expect(backlogLinks.some((link) => link.getAttribute("aria-current") === "page")).toBe(
+      true,
+    );
+    const boardLinks = screen.getAllByRole("link", { name: "Board" });
+    expect(boardLinks.every((link) => link.getAttribute("aria-current") !== "page")).toBe(
+      true,
+    );
+  });
+
+  it("saves assignee, priority, story points, and due date", async () => {
+    const user = userEvent.setup();
+    const current = sampleTicket();
+    vi.mocked(api.patch).mockImplementation(async (_url, patch) =>
+      savedTicket(patch as Partial<Ticket>, current),
+    );
+    renderTicket(current);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+    await user.click(await screen.findByRole("option", { name: "Sam Kim" }));
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+    await user.click(await screen.findByRole("option", { name: "Unassigned" }));
+    await user.click(screen.getByRole("combobox", { name: "Priority" }));
+    await user.click(await screen.findByRole("option", { name: "Low" }));
+    await user.click(screen.getByRole("combobox", { name: "Story points" }));
+    await user.click(await screen.findByRole("option", { name: "8" }));
+    await user.click(screen.getByRole("combobox", { name: "Story points" }));
+    await user.click(await screen.findByRole("option", { name: "—" }));
+
+    const due = screen.getByLabelText("Due date");
+    await user.clear(due);
+    await user.type(due, "2026-11-03");
+    await user.clear(due);
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { assigneeId: "sam" });
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { assigneeId: null });
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { priority: "LOW" });
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { storyPoints: 8 });
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { storyPoints: null });
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { dueDate: "2026-11-03" });
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { dueDate: null });
+    });
+  });
+
+  it("saves the title on Enter and when leaving the field", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockImplementation(async (_url, patch) =>
+      savedTicket(patch as Partial<Ticket>),
+    );
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Ticket detail view with comments" }),
+    );
+    const title = screen.getByRole("textbox", { name: "Title" });
+    await user.clear(title);
+    await user.type(title, "New title{Enter}");
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { title: "New title" });
+    });
+    expect(screen.getByRole("heading", { name: "New title" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "New title" }));
+    const again = screen.getByRole("textbox", { name: "Title" });
+    await user.clear(again);
+    await user.type(again, "Renamed again");
+    await user.tab();
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { title: "Renamed again" });
+    });
+  });
+
+  it("keeps the previous title when the new one is blank", async () => {
+    const user = userEvent.setup();
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Ticket detail view with comments" }),
+    );
+    const title = screen.getByRole("textbox", { name: "Title" });
+    await user.clear(title);
+    await user.type(title, "   ");
+    await user.tab();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Title is required.");
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "Ticket detail view with comments" }),
+    ).toBeInTheDocument();
+  });
+
+  it("clears the description", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockResolvedValue(savedTicket({ description: null }));
+    renderTicket();
+    expect(await screen.findByText("Open a ticket from the board.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Open a ticket from the board." }));
+    const description = screen.getByRole("textbox", { name: "Description" });
+    await user.clear(description);
+    await user.tab();
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith("/tickets/t1", { description: null });
+    });
+    expect(screen.getByRole("button", { name: "No description" })).toBeInTheDocument();
+  });
+
+  it("restores the previous value when a save fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockRejectedValue(new ApiError(500, "no"));
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(await screen.findByRole("option", { name: "Backlog" }));
+
+    expect(
+      await screen.findByText("Couldn't save that change. Please try again."),
+    ).toBeInTheDocument();
+    const details = screen.getByRole("region", { name: "Details" });
+    expect(within(details).getByText("In progress")).toBeInTheDocument();
+    const boardLinks = screen.getAllByRole("link", { name: "Board" });
+    expect(boardLinks.some((link) => link.getAttribute("aria-current") === "page")).toBe(
+      true,
+    );
+  });
+
+  it("posts a comment from the reporter and ignores an empty one", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        id: "c3",
+        body: "Looks good.",
+        createdById: "sam",
+        createdAt: "2026-10-30T12:00:00.000Z",
+      },
+    });
+    renderTicket();
+    expect(await screen.findByRole("heading", { name: "Comments 2" })).toBeInTheDocument();
+
+    const composer = screen.getByRole("textbox", { name: "Write a comment..." });
+    const submit = screen.getByRole("button", { name: "Comment" });
+    expect(submit).toBeDisabled();
+    await user.type(composer, "   ");
+    expect(submit).toBeDisabled();
+    await user.clear(composer);
+    await user.type(composer, "Looks good.");
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith("/tickets/t1/comments", {
+        body: "Looks good.",
+      });
+    });
+    expect(screen.getByRole("heading", { name: "Comments 3" })).toBeInTheDocument();
+    const body = screen.getByText("Looks good.");
+    const older = screen.getByText("Should the reporter get an email?");
+    expect(
+      older.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const item = body.closest("li");
+    expect(item).toHaveTextContent("Sam Kim");
+    expect(item).toHaveTextContent("SK");
+    expect(item).toHaveTextContent("now");
+    const thread = screen.getByRole("list", { name: "Comments" });
+    expect(within(thread).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("copies the page link without granting anyone else access", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    const items = (await screen.findAllByRole("menuitem")).map((item) => item.textContent);
+    expect(items).toEqual(["Copy link", "Delete"]);
+    await user.click(screen.getByRole("menuitem", { name: "Copy link" }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(
+        "http://localhost:3000/projects/p1/tickets/t1",
+      );
+    });
+    expect(screen.getByText("Link copied")).toBeInTheDocument();
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
+  it("says the link could not be copied", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy link" }));
+    expect(await screen.findByText("Couldn't copy the link.")).toBeInTheDocument();
+    expect(screen.queryByText("Link copied")).not.toBeInTheDocument();
+  });
+
+  it("cancels delete and leaves the ticket in place", async () => {
+    const user = userEvent.setup();
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    expect(await screen.findByRole("heading", { name: "Delete ticket" })).toBeInTheDocument();
+    expect(screen.getByText("WEB-12 will be deleted, including its comments.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("heading", { name: "Delete ticket" })).not.toBeInTheDocument();
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "Ticket detail view with comments" }),
+    ).toBeInTheDocument();
+  });
+
+  it("deletes a board ticket and returns to the board", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.delete).mockResolvedValue({ data: { id: "t1" } });
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(api.delete).toHaveBeenCalledWith("/tickets/t1");
+      expect(push).toHaveBeenCalledWith("/projects/p1");
+    });
+  });
+
+  it("deletes a backlog ticket and returns to the backlog", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.delete).mockResolvedValue({ data: { id: "t1" } });
+    renderTicket(sampleTicket({ status: "BACKLOG" }));
+    expect((await screen.findAllByText("WEB-12")).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/projects/p1/backlog");
+    });
+  });
+
+  it("keeps the delete dialog open when delete fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.delete).mockRejectedValue(new ApiError(500, "no"));
+    renderTicket();
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ticket detail view with comments",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    expect(
+      await screen.findByText("Couldn't delete that ticket. Please try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Delete ticket" })).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: "Ticket detail view with comments",
+        hidden: true,
+      }),
     ).toBeInTheDocument();
   });
 });
