@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { PasswordInput } from "@/components/password-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { safeNextPath } from "@/lib/return-path";
 
 const schema = z
   .object({
@@ -41,6 +42,7 @@ type Values = z.infer<typeof schema>;
 
 export function SignupForm() {
   const router = useRouter();
+  const next = safeNextPath(useSearchParams().get("next"));
   const [serverError, setServerError] = useState("");
   const {
     register,
@@ -67,7 +69,7 @@ export function SignupForm() {
     });
     if (result.error)
       setServerError(result.error.message ?? "Something went wrong");
-    else router.push("/projects"); // Better Auth signs the new user in automatically
+    else router.push(next ?? "/projects"); // Better Auth signs the new user in automatically
   }
 
   return (
@@ -168,7 +170,10 @@ export function SignupForm() {
       </Button>
       <p className="text-center text-sm">
         Already have an account?{" "}
-        <Link className="underline" href="/signin">
+        <Link
+          className="underline"
+          href={next ? `/signin?next=${encodeURIComponent(next)}` : "/signin"}
+        >
           Sign in
         </Link>
       </p>

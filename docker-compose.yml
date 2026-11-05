@@ -99,6 +99,7 @@ services:
       PORT: "4000"
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/tickets_db
       AUTH_URL: http://auth:4001 # service-to-service call over the Compose network
+      WEB_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
       REDIS_URL: redis://redis:6379
     ports:
       - "4000:4000"

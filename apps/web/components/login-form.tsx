@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { PasswordInput } from "@/components/password-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { safeNextPath } from "@/lib/return-path";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -27,6 +28,7 @@ type Values = z.infer<typeof schema>;
 
 export function LoginForm() {
   const router = useRouter();
+  const next = safeNextPath(useSearchParams().get("next"));
   const [serverError, setServerError] = useState("");
   const {
     register,
@@ -45,7 +47,7 @@ export function LoginForm() {
     });
     if (result.error)
       setServerError(result.error.message ?? "Something went wrong");
-    else router.push("/projects");
+    else router.push(next ?? "/projects");
   }
 
   return (
@@ -106,7 +108,10 @@ export function LoginForm() {
       </Button>
       <p className="text-center text-sm">
         {"Don't have an account? "}
-        <Link className="underline" href="/signup">
+        <Link
+          className="underline"
+          href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+        >
           Sign up
         </Link>
       </p>

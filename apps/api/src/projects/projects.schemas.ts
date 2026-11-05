@@ -26,3 +26,16 @@ export const listProjectsSchema = z.object({
   archived: z.enum(['true', 'false']).default('false'),
 });
 export type ListProjectsQuery = z.infer<typeof listProjectsSchema>;
+
+export const inviteSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Enter a valid email'),
+});
+export type InviteInput = z.infer<typeof inviteSchema>;
+
+export const memberRoleSchema = z.object({
+  role: z.enum(['OWNER', 'MEMBER']),
+});
+export type MemberRoleInput = z.infer<typeof memberRoleSchema>;

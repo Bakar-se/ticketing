@@ -5,7 +5,7 @@ import { startAuthEmailWorker } from "./auth-emails";
 
 // Same shape as the api's job. Deliberately duplicated: no shared package between services.
 // New fields are optional: jobs queued by an older api version may not have them.
-type NotificationJob = {
+type TicketNotification = {
   type: "ticket.created" | "comment.created";
   ticketId: string;
   ticketKey?: string;
@@ -18,7 +18,28 @@ type NotificationJob = {
   commentBody?: string;
 };
 
+type InviteNotification = {
+  type: "project.invite";
+  recipientEmail: string;
+  projectName: string;
+  boardUrl: string;
+};
+
+type NotificationJob = TicketNotification | InviteNotification;
+
 function buildEmail(d: NotificationJob) {
+  if (d.type === "project.invite") {
+    return {
+      subject: `You're invited to ${d.projectName}`,
+      text: [
+        `You're invited to ${d.projectName}.`,
+        "",
+        "Sign in with this email address to join the project:",
+        d.boardUrl,
+      ].join("\n"),
+    };
+  }
+
   const tag = d.ticketKey ?? "Ticket";
   const label = d.ticketKey
     ? `${d.ticketKey}: ${d.ticketTitle}`

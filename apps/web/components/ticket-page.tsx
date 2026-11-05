@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { authClient } from "@/lib/auth-client";
 import { ApiError, api, queryKeys } from "@/lib/api";
 import { timeAgo } from "@/lib/projects";
 import {
@@ -44,7 +45,12 @@ import {
 } from "@/lib/tickets";
 import { cn } from "cn";
 
-type Member = { userId: string; name: string; email: string };
+type Member = {
+  userId: string;
+  name: string;
+  email: string;
+  role?: "OWNER" | "MEMBER";
+};
 type Comment = {
   id: string;
   body: string;
@@ -83,6 +89,7 @@ export function TicketPage() {
   const router = useRouter();
   const { setChrome } = useTicketChrome();
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
   const [saveError, setSaveError] = useState("");
   const [titleError, setTitleError] = useState("");
   const [editing, setEditing] = useState<"title" | "description" | null>(null);
@@ -191,6 +198,11 @@ export function TicketPage() {
   }
 
   const members = membersQuery.isSuccess ? membersQuery.data : undefined;
+  const viewerId = session?.user?.id;
+  const viewer = members?.find((member) => member.userId === viewerId);
+  const canDelete =
+    viewerId != null &&
+    (ticket.createdById === viewerId || viewer?.role === "OWNER");
   const comments = commentsQuery.data ?? [];
   const assigneeName = ticket.assigneeId
     ? personName(members, ticket.assigneeId)
@@ -314,16 +326,18 @@ export function TicketPage() {
                 <DropdownMenuItem className="min-h-10" onClick={copyLink}>
                   Copy link
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-10"
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteError("");
-                    setDeleteOpen(true);
-                  }}
-                >
-                  Delete
-                </DropdownMenuItem>
+                {canDelete ? (
+                  <DropdownMenuItem
+                    className="min-h-10"
+                    variant="destructive"
+                    onClick={() => {
+                      setDeleteError("");
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

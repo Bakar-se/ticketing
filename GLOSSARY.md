@@ -31,3 +31,19 @@ _Avoid_: Note, reply
 **Unknown**:
 A person named on a ticket or comment who is not a member of that project.
 _Avoid_: Former member, deleted user
+
+**Team**:
+The people who can open one project: its members and its pending invites. A team belongs to a single project.
+_Avoid_: Organization, workspace
+
+**Member**:
+A person who can open a project and work on its tickets. Anyone who creates a project is its first member.
+_Avoid_: Collaborator, user, participant
+
+**Owner**:
+A member who manages a project's team and its settings. This is a project role, not a ticket role: a ticket's reporter and assignee are never called owners. An Owner can change the project's name, description, and target date, and can archive or delete the project.
+_Avoid_: Admin, creator
+
+**Pending invite**:
+An invitation to an email address that has not yet become a member. It is not an assignee choice and does not grant access. It lasts 7 days from when it was last sent. After that it is expired: it stays on the team until an Owner resends or cancels it, and signing in does not accept it.
+_Avoid_: Pending member, invitee

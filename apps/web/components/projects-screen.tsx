@@ -41,6 +41,7 @@ export function ProjectsScreen() {
   const [sort, setSort] = useState<Sort>("updated");
   const [toDelete, setToDelete] = useState<Project | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [archived, setArchived] = useState(false);
   const removeProject = useMutation({
     mutationFn: (id: string) => api.delete(`/projects/${id}`),
     onSuccess: () => {
@@ -49,8 +50,13 @@ export function ProjectsScreen() {
     },
   });
   const { data: projects } = useQuery({
-    queryKey: queryKeys.projects,
-    queryFn: async () => (await api.get<Project[]>("/projects")).data,
+    queryKey: [...queryKeys.projects, archived ? "archived" : "active"],
+    queryFn: async () =>
+      (
+        await api.get<Project[]>("/projects", {
+          params: archived ? { archived: "true" } : undefined,
+        })
+      ).data,
   });
   const list = projects ?? [];
   const needle = query.trim().toLowerCase();
@@ -84,7 +90,30 @@ export function ProjectsScreen() {
           )}
         </div>
 
-        {projects?.length === 0 && (
+        {projects && (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={archived ? "outline" : "default"}
+              className="h-10"
+              aria-pressed={!archived}
+              onClick={() => setArchived(false)}
+            >
+              Active
+            </Button>
+            <Button
+              type="button"
+              variant={archived ? "default" : "outline"}
+              className="h-10"
+              aria-pressed={archived}
+              onClick={() => setArchived(true)}
+            >
+              Archived
+            </Button>
+          </div>
+        )}
+
+        {projects?.length === 0 && !archived && (
           <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed px-6 text-center">
             <span className="flex size-12 items-center justify-center rounded-md bg-muted">
               <Folder className="size-6" />
@@ -100,7 +129,7 @@ export function ProjectsScreen() {
           </div>
         )}
 
-        {list.length > 0 && (
+        {(list.length > 0 || archived) && (
           <>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
@@ -137,7 +166,11 @@ export function ProjectsScreen() {
             </div>
             {visible.length === 0 ? (
               <p className="py-16 text-center text-muted-foreground">
-                {`No projects match "${query.trim()}"`}
+                {needle
+                  ? `No projects match "${query.trim()}"`
+                  : archived
+                    ? "No archived projects."
+                    : "No projects yet"}
               </p>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
@@ -183,7 +216,7 @@ export function ProjectsScreen() {
           <DialogHeader>
             <DialogTitle>Delete project</DialogTitle>
             <DialogDescription>
-              {`This permanently deletes ${toDelete?.name ?? "this project"} and its tickets.`}
+              {`This permanently deletes ${toDelete?.name ?? "this project"}, including its tickets, comments, and team.`}
             </DialogDescription>
           </DialogHeader>
           {deleteError && (
@@ -264,16 +297,18 @@ function ProjectCard({
           <span className="text-xs text-muted-foreground">
             Updated {timeAgo(project.updatedAt)}
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-10 shrink-0"
-            aria-label={`Delete ${project.name}`}
-            onClick={onDelete}
-          >
-            <Trash2 />
-          </Button>
+          {project.role === "OWNER" ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-10 shrink-0"
+              aria-label={`Delete ${project.name}`}
+              onClick={onDelete}
+            >
+              <Trash2 />
+            </Button>
+          ) : null}
         </div>
       </div>
       <Link href={`/projects/${project.id}`} className="flex flex-col gap-3">

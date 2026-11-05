@@ -53,6 +53,7 @@ export const queryKeys = {
     ["projects", projectId, "tickets"] as const,
   projectMembers: (projectId: string) =>
     ["projects", projectId, "members"] as const,
+  team: (projectId: string) => ["projects", projectId, "team"] as const,
   ticket: (ticketId: string) => ["tickets", ticketId] as const,
   comments: (ticketId: string) => ["tickets", ticketId, "comments"] as const,
 };

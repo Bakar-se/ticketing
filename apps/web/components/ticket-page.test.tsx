@@ -44,7 +44,7 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/auth-client", () => ({
   authClient: {
     useSession: () => ({
-      data: { user: { name: "Sam Kim", email: "sam@example.com" } },
+      data: { user: { id: "sam", name: "Sam Kim", email: "sam@example.com" } },
       isPending: false,
     }),
     signOut: vi.fn(),
@@ -105,7 +105,11 @@ const comments = [
   },
 ];
 
-function projectShellRoutes(current: Ticket, thread: unknown = comments) {
+function projectShellRoutes(
+  current: Ticket,
+  thread: unknown = comments,
+  people: unknown = members,
+) {
   return {
     "/projects/p1": { id: "p1", key: "WEB", name: "Web app" },
     "/projects": [
@@ -120,7 +124,7 @@ function projectShellRoutes(current: Ticket, thread: unknown = comments) {
     ],
     [`/tickets/${current.id}`]: current,
     [`/tickets/${current.id}/comments`]: thread,
-    "/projects/p1/members": members,
+    "/projects/p1/members": people,
   } as Record<string, unknown>;
 }
 
@@ -144,10 +148,14 @@ function mockGet(routes: Record<string, unknown>) {
   });
 }
 
-function renderTicket(current = sampleTicket(), thread: unknown = comments) {
+function renderTicket(
+  current = sampleTicket(),
+  thread: unknown = comments,
+  people: unknown = members,
+) {
   route.params = { id: "p1", ticketId: current.id };
   route.pathname = `/projects/p1/tickets/${current.id}`;
-  mockGet(projectShellRoutes(current, thread));
+  mockGet(projectShellRoutes(current, thread, people));
   return render(
     <QueryClientProvider client={makeQueryClient()}>
       <TicketChromeProvider>
@@ -841,5 +849,73 @@ describe("ticket links", () => {
     );
     const link = await screen.findByRole("link", { name: "WEB-12" });
     expect(link).toHaveAttribute("href", "/projects/p1/tickets/t1");
+  });
+
+  it("shows a former assignee as Unknown", async () => {
+    const current = sampleTicket({ assigneeId: "ghost", status: "BACKLOG" });
+    route.params = { id: "p1" };
+    route.pathname = "/projects/p1/backlog";
+    mockGet({
+      "/projects/p1/members": members,
+      "/projects/p1/tickets": { items: [current], total: 1 },
+    });
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <ProjectBacklog />
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Assignee Unknown. Change assignee" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides backlog delete from a member who is not the reporter", async () => {
+    const user = userEvent.setup();
+    const current = sampleTicket({
+      assigneeId: null,
+      status: "BACKLOG",
+      createdById: "alex",
+    });
+    route.params = { id: "p1" };
+    route.pathname = "/projects/p1/backlog";
+    mockGet({
+      "/projects/p1/members": [
+        { userId: "alex", name: "Alex Doe", email: "alex@example.com", role: "OWNER" },
+        { userId: "sam", name: "Sam Kim", email: "sam@example.com", role: "MEMBER" },
+      ],
+      "/projects/p1/tickets": { items: [current], total: 1 },
+    });
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <ProjectBacklog />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Actions for WEB-12" }));
+    expect(await screen.findByRole("menuitem", { name: "Open" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("hides delete from a member who is not the reporter", async () => {
+    const user = userEvent.setup();
+    renderTicket(sampleTicket({ createdById: "alex" }));
+    expect(
+      await screen.findByRole("heading", { name: "Ticket detail view with comments" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    expect(await screen.findByRole("menuitem", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("lets an Owner delete a ticket they did not report", async () => {
+    const user = userEvent.setup();
+    renderTicket(sampleTicket({ createdById: "alex" }), comments, [
+      { userId: "alex", name: "Alex Doe", email: "alex@example.com", role: "MEMBER" },
+      { userId: "sam", name: "Sam Kim", email: "sam@example.com", role: "OWNER" },
+    ]);
+    expect(
+      await screen.findByRole("heading", { name: "Ticket detail view with comments" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Actions for WEB-12" }));
+    expect(await screen.findByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
   });
 });

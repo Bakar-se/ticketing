@@ -1,9 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import type { SessionUser } from '../auth/auth.guard.js';
+import { ProjectRole } from '../generated/prisma/enums.js';
+import { MembershipService } from '../membership/membership.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   CreateProjectInput,
@@ -29,7 +27,10 @@ const STATUS_KEY: Record<string, keyof Counts> = {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly membership: MembershipService,
+  ) {}
 
   async create(user: SessionUser, input: CreateProjectInput) {
     // Keys are globally unique in this app. (A multi-tenant product would scope them per workspace.)
@@ -50,6 +51,7 @@ export class ProjectsService {
             userId: user.id,
             name: user.name,
             email: user.email,
+            role: ProjectRole.OWNER,
           },
         },
       },
@@ -59,8 +61,11 @@ export class ProjectsService {
   async findAll(userId: string, query: ListProjectsQuery) {
     const projects = await this.prisma.project.findMany({
       where: {
-        createdById: userId,
+        members: { some: { userId } },
         archivedAt: query.archived === 'true' ? { not: null } : null,
+      },
+      include: {
+        members: { where: { userId }, select: { role: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -87,47 +92,37 @@ export class ProjectsService {
       byProject.set(g.projectId, c);
     }
 
-    return projects.map((p) => ({
-      ...p,
-      counts: byProject.get(p.id) ?? {
-        backlog: 0,
-        todo: 0,
-        inProgress: 0,
-        done: 0,
-      },
-    }));
+    return projects.map((p) => {
+      const { members, ...project } = p;
+      return {
+        ...project,
+        role: members[0]?.role ?? ProjectRole.MEMBER,
+        counts: byProject.get(p.id) ?? {
+          backlog: 0,
+          todo: 0,
+          inProgress: 0,
+          done: 0,
+        },
+      };
+    });
   }
 
   async members(user: SessionUser, id: string) {
-    await this.findOne(user.id, id);
-    await this.prisma.projectMember.upsert({
-      where: { projectId_userId: { projectId: id, userId: user.id } },
-      create: {
-        projectId: id,
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-      },
-      update: { name: user.name, email: user.email },
-    });
+    await this.membership.projectFor(user.id, id);
     return this.prisma.projectMember.findMany({
       where: { projectId: id },
       orderBy: { name: 'asc' },
-      select: { userId: true, name: true, email: true },
+      select: { userId: true, name: true, email: true, role: true },
     });
   }
 
-  // Scoped to the owner: someone else's id looks like "not found"
   async findOne(userId: string, id: string) {
-    const project = await this.prisma.project.findFirst({
-      where: { id, createdById: userId },
-    });
-    if (!project) throw new NotFoundException('Project not found');
-    return project;
+    const { project, member } = await this.membership.projectFor(userId, id);
+    return { ...project, role: member.role };
   }
 
   async update(userId: string, id: string, input: UpdateProjectInput) {
-    await this.findOne(userId, id);
+    await this.membership.requireOwner(userId, id);
     return this.prisma.project.update({
       where: { id },
       data: {
@@ -145,7 +140,7 @@ export class ProjectsService {
   }
 
   async remove(userId: string, id: string) {
-    await this.findOne(userId, id);
+    await this.membership.requireOwner(userId, id);
     await this.prisma.project.delete({ where: { id } });
     return { message: 'Project deleted successfully' };
   }

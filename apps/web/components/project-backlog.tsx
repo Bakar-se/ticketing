@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { authClient } from "@/lib/auth-client";
 import { api, queryKeys } from "@/lib/api";
 import {
   PRIORITY_CLASS,
@@ -60,6 +61,7 @@ type Member = {
   userId: string;
   name: string;
   email: string;
+  role?: "OWNER" | "MEMBER";
 };
 
 type BacklogData = {
@@ -102,6 +104,7 @@ function BacklogRow({
   onAssign,
   onMove,
   onDelete,
+  canDelete,
 }: {
   ticket: Ticket;
   members: Member[];
@@ -111,8 +114,12 @@ function BacklogRow({
   onAssign: (assigneeId: string | null) => void;
   onMove: () => void;
   onDelete: () => void;
+  canDelete: boolean;
 }) {
   const assignee = members.find((member) => member.userId === ticket.assigneeId);
+  const assigneeName = ticket.assigneeId
+    ? (assignee?.name ?? "Unknown")
+    : null;
   const due = formatDue(ticket.dueDate) ?? "No date";
 
   return (
@@ -154,15 +161,15 @@ function BacklogRow({
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={
-            assignee
-              ? `Assignee ${assignee.name}. Change assignee`
+            assigneeName
+              ? `Assignee ${assigneeName}. Change assignee`
               : `Assign ${ticket.ticketKey}`
           }
           className="inline-flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          {assignee ? (
+          {assigneeName ? (
             <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-              {initials(assignee.name)}
+              {assignee ? initials(assignee.name) : "?"}
             </span>
           ) : (
             <span className="size-7 rounded-full border border-dashed border-muted-foreground/60" />
@@ -200,13 +207,15 @@ function BacklogRow({
           <DropdownMenuItem className="min-h-10" onClick={onMove}>
             Move to To do
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="min-h-10"
-            variant="destructive"
-            onClick={onDelete}
-          >
-            Delete
-          </DropdownMenuItem>
+          {canDelete ? (
+            <DropdownMenuItem
+              className="min-h-10"
+              variant="destructive"
+              onClick={onDelete}
+            >
+              Delete
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -252,6 +261,7 @@ function SortableList({
   onAssign,
   onMove,
   onDelete,
+  canDelete,
 }: {
   tickets: Ticket[];
   members: Member[];
@@ -259,6 +269,7 @@ function SortableList({
   onAssign: (ticketId: string, assigneeId: string | null) => void;
   onMove: (ticketId: string) => void;
   onDelete: (ticket: Ticket) => void;
+  canDelete: (ticket: Ticket) => boolean;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -288,6 +299,7 @@ function SortableList({
             onAssign={(assigneeId) => onAssign(ticket.id, assigneeId)}
             onMove={() => onMove(ticket.id)}
             onDelete={() => onDelete(ticket)}
+            canDelete={canDelete(ticket)}
           />
         ))}
       </SortableContext>
@@ -298,6 +310,7 @@ function SortableList({
 export function ProjectBacklog() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
   const [query, setQuery] = useState("");
   const [priority, setPriority] = useState<"all" | TicketPriority>("all");
   const [assignee, setAssignee] = useState<AssigneeFilter>("all");
@@ -449,6 +462,14 @@ export function ProjectBacklog() {
 
   const tickets = ticketsQuery.data?.items ?? [];
   const members = membersQuery.data ?? [];
+  const viewerId = session?.user?.id;
+  const viewer = members.find((member) => member.userId === viewerId);
+  function canDelete(ticket: Ticket) {
+    return (
+      viewerId != null &&
+      (ticket.createdById === viewerId || viewer?.role === "OWNER")
+    );
+  }
   const needle = query.trim().toLowerCase();
   const filtering = needle.length > 0 || priority !== "all" || assignee !== "all";
   const visible = tickets.filter((ticket) => {
@@ -599,6 +620,7 @@ export function ProjectBacklog() {
                   onAssign={onAssign}
                   onMove={(ticketId) => move.mutate(ticketId)}
                   onDelete={setPendingDelete}
+                  canDelete={canDelete}
                 />
               ) : (
                 visible.map((ticket) => (
@@ -610,6 +632,7 @@ export function ProjectBacklog() {
                     onAssign={(assigneeId) => onAssign(ticket.id, assigneeId)}
                     onMove={() => move.mutate(ticket.id)}
                     onDelete={() => setPendingDelete(ticket)}
+                    canDelete={canDelete(ticket)}
                   />
                 ))
               )}

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "./lib/return-path";
 
 const AUTH_URL = process.env.AUTH_INTERNAL_URL ?? "http://localhost:4001";
 const PUBLIC_PATHS = [
@@ -34,13 +35,22 @@ export async function proxy(request: NextRequest) {
 
   if (!authenticated && !isPublic) {
     const url = request.nextUrl.clone();
+    const dest = `${pathname}${request.nextUrl.search}`;
     url.pathname = "/signin";
-    url.search = "";
+    url.search = `?next=${encodeURIComponent(dest)}`;
     return NextResponse.redirect(url);
   }
   if (authenticated && AUTH_ENTRY_PATHS.includes(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/projects";
+    const next = safeNextPath(url.searchParams.get("next"));
+    if (!next) {
+      url.pathname = "/projects";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    const target = new URL(next, "http://trackbit.local");
+    url.pathname = target.pathname;
+    url.search = target.search;
     return NextResponse.redirect(url);
   }
   return NextResponse.next();

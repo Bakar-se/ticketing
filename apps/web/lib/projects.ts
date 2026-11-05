@@ -11,6 +11,7 @@ export type Project = {
   name: string;
   description: string | null;
   updatedAt: string;
+  role: "OWNER" | "MEMBER";
   counts: ProjectCounts;
 };
 

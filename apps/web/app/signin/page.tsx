@@ -9,8 +9,8 @@ export default function Page() {
       <div className="flex flex-col gap-6">
         <Suspense fallback={null}>
           <ResetNotice />
+          <LoginForm />
         </Suspense>
-        <LoginForm />
       </div>
     </AuthLayout>
   );

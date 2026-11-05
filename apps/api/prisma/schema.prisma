@@ -22,6 +22,11 @@ enum TicketPriority {
   URGENT
 }
 
+enum ProjectRole {
+  OWNER
+  MEMBER
+}
+
 
 model Project {
   id            String    @id @default(uuid())
@@ -36,6 +41,7 @@ model Project {
   updatedAt     DateTime  @updatedAt
   tickets       Ticket[]
   members       ProjectMember[]
+  invites       ProjectInvite[]
 
   @@index([createdById])
 }
@@ -47,11 +53,28 @@ model ProjectMember {
   userId    String
   name      String
   email     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      ProjectRole @default(MEMBER)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@unique([projectId, userId])
   @@index([projectId])
+}
+
+model ProjectInvite {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  email      String
+  sentAt     DateTime @default(now())
+  expiresAt  DateTime
+  sendFailed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([projectId, email])
+  @@index([projectId])
+  @@index([email])
 }
 
 model Ticket {

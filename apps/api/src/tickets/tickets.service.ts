@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import type { SessionUser } from '../auth/auth.guard.js';
-import { TicketPriority, TicketStatus } from '../generated/prisma/enums.js';
+import { ProjectRole, TicketStatus } from '../generated/prisma/enums.js';
+import { MembershipService } from '../membership/membership.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from '../queue/notifications.service.js';
 import {
@@ -51,35 +52,11 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly membership: MembershipService,
   ) {}
 
-  private async ownedProject(
-    userId: string,
-    projectId: string,
-    allowArchived = false,
-  ) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id: projectId,
-        createdById: userId,
-        ...(allowArchived ? {} : { archivedAt: null }),
-      },
-    });
-    if (!project) throw new NotFoundException('Project not found');
-    return project;
-  }
-
-  private async owned(userId: string, id: string) {
-    const ticket = await this.prisma.ticket.findFirst({
-      where: { id, createdById: userId },
-      include: withProjectKey,
-    });
-    if (!ticket) throw new NotFoundException('Ticket not found');
-    return ticket;
-  }
-
   async create(user: SessionUser, projectId: string, input: CreateTicketInput) {
-    await this.ownedProject(user.id, projectId);
+    await this.membership.projectFor(user.id, projectId);
 
     const ticket = await this.prisma.$transaction(async (tx) => {
       const { ticketCounter } = await tx.project.update({
@@ -126,6 +103,7 @@ export class TicketsService {
   }
 
   async findAll(userId: string, projectId: string, query: ListTicketsQuery) {
+    await this.membership.projectFor(userId, projectId);
     const where = {
       projectId,
       status: query.status,
@@ -164,12 +142,13 @@ export class TicketsService {
   }
 
   async findOne(userId: string, id: string) {
-    return present(await this.owned(userId, id));
+    const { ticket } = await this.membership.visibleTicket(userId, id);
+    return present(ticket);
   }
 
   async update(userId: string, id: string, input: UpdateTicketInput) {
-    const existing = await this.owned(userId, id);
-    if (input.assigneeId) {
+    const { ticket: existing } = await this.membership.visibleTicket(userId, id);
+    if (input.assigneeId && input.assigneeId !== existing.assigneeId) {
       const member = await this.prisma.projectMember.findUnique({
         where: {
           projectId_userId: {
@@ -212,7 +191,7 @@ export class TicketsService {
   }
 
   async reorder(userId: string, projectId: string, ids: string[]) {
-    await this.ownedProject(userId, projectId);
+    await this.membership.projectFor(userId, projectId);
     if (new Set(ids).size !== ids.length) {
       throw new BadRequestException('Ticket ids must be unique');
     }
@@ -239,7 +218,15 @@ export class TicketsService {
   }
 
   async remove(userId: string, id: string) {
-    await this.owned(userId, id);
+    const { ticket, member } = await this.membership.visibleTicket(userId, id);
+    if (
+      ticket.createdById !== userId &&
+      member.role !== ProjectRole.OWNER
+    ) {
+      throw new ForbiddenException(
+        'Only the reporter or an Owner can delete this ticket.',
+      );
+    }
     await this.prisma.ticket.delete({ where: { id } });
     return { id };
   }

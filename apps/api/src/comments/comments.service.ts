@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { SessionUser } from '../auth/auth.guard.js';
+import { MembershipService } from '../membership/membership.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from '../queue/notifications.service.js';
 
@@ -12,20 +13,12 @@ export class CommentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly membership: MembershipService,
   ) {}
-
-  private async ownedTicket(userId: string, ticketId: string) {
-    const ticket = await this.prisma.ticket.findFirst({
-      where: { id: ticketId, createdById: userId },
-      include: { project: { select: { key: true } } },
-    });
-    if (!ticket) throw new NotFoundException('Ticket not found');
-    return ticket;
-  }
 
   async create(user: SessionUser, ticketId: string, input: { body?: string }) {
     if (!input.body) throw new BadRequestException('body is required');
-    const ticket = await this.ownedTicket(user.id, ticketId);
+    const { ticket } = await this.membership.visibleTicket(user.id, ticketId);
     const comment = await this.prisma.comment.create({
       data: { body: input.body, ticketId, createdById: user.id },
     });
@@ -42,7 +35,7 @@ export class CommentsService {
   }
 
   async findAll(userId: string, ticketId: string) {
-    await this.ownedTicket(userId, ticketId);
+    await this.membership.visibleTicket(userId, ticketId);
     return this.prisma.comment.findMany({
       where: { ticketId },
       orderBy: { createdAt: 'asc' },
@@ -51,9 +44,18 @@ export class CommentsService {
 
   async remove(userId: string, id: string) {
     const comment = await this.prisma.comment.findFirst({
-      where: { id, createdById: userId },
+      where: { id },
+      include: { ticket: { select: { projectId: true } } },
     });
-    if (!comment) throw new NotFoundException();
+    if (!comment || comment.createdById !== userId) {
+      throw new NotFoundException();
+    }
+    const member = await this.prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: { projectId: comment.ticket.projectId, userId },
+      },
+    });
+    if (!member) throw new NotFoundException();
     await this.prisma.comment.delete({ where: { id } });
     return { id };
   }
