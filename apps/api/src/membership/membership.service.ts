@@ -43,6 +43,19 @@ export class MembershipService {
     });
   }
 
+  // Member rows copy the person's name and email from the auth service.
+  // A changed profile shows up on the session, so bring stale copies up
+  // to date on the person's next request (docs/adr/0001).
+  async refreshCopies(user: SessionUser) {
+    await this.prisma.projectMember.updateMany({
+      where: {
+        userId: user.id,
+        OR: [{ name: { not: user.name } }, { email: { not: user.email } }],
+      },
+      data: { name: user.name, email: user.email },
+    });
+  }
+
   async acceptPending(user: SessionUser) {
     const email = user.email.trim().toLowerCase();
     if (!email) return;

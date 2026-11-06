@@ -19,6 +19,7 @@ export class AcceptInvitesInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<{ user?: SessionUser }>();
     if (request.user) {
       await this.membership.ensureCreator(request.user);
+      await this.membership.refreshCopies(request.user);
       await this.membership.acceptPending(request.user);
     }
     return next.handle();

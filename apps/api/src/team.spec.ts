@@ -510,6 +510,27 @@ describe('project team', () => {
     expect(team.body.members).toHaveLength(1);
   });
 
+  it('shows a member under their new name and email after they change their profile', async () => {
+    const web = await createProject(alex);
+    const mobile = await createProject(alex, 'MOB', 'Mobile');
+    const renamed = { ...alex, name: 'Alexandra Doe', email: 'alexandra@company.com' };
+
+    // The next request with the updated session refreshes every copy
+    const list = await http(renamed).get('/projects');
+    expect(list.status).toBe(200);
+
+    for (const project of [web, mobile]) {
+      const team = await http(renamed).get(`/projects/${project.id}/team`);
+      expect(team.body.members).toEqual([
+        expect.objectContaining({
+          userId: 'alex',
+          name: 'Alexandra Doe',
+          email: 'alexandra@company.com',
+        }),
+      ]);
+    }
+  });
+
   it('makes a pre-team creator the Owner when they next sign in', async () => {
     const project = await prisma.project.create({
       data: { key: 'OLD', name: 'Legacy', createdById: alex.id },
