@@ -18,7 +18,7 @@ const schema = z.object({
     .trim()
     .toUpperCase()
     .regex(/^[A-Z]{2,5}$/, "Key must be 2 to 5 letters"),
-  description: z.string().trim().max(500, "Must be 500 characters or less"),
+  description: z.string().trim().max(2000, "Must be 2000 characters or less"),
 });
 type Values = z.infer<typeof schema>;
 

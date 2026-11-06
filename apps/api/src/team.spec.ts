@@ -101,6 +101,19 @@ describe('project team', () => {
     return res.body as { id: string; key: string; name: string };
   }
 
+  it('allows the same 2000-character description when creating as when editing', async () => {
+    const fits = await http(alex)
+      .post('/projects')
+      .send({ name: 'Web app', key: 'WEB', description: 'a'.repeat(2000) });
+    expect(fits.status).toBe(201);
+    expect(fits.body.description).toHaveLength(2000);
+
+    const tooLong = await http(alex)
+      .post('/projects')
+      .send({ name: 'Mobile', key: 'MOB', description: 'a'.repeat(2001) });
+    expect(tooLong.status).toBe(400);
+  });
+
   it('makes the creator the Owner and hides the project from everyone else', async () => {
     const project = await createProject(alex);
     const team = await http(alex).get(`/projects/${project.id}/team`);

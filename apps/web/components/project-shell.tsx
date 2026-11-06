@@ -43,6 +43,7 @@ type ProjectDetail = {
   id: string;
   key: string;
   name: string;
+  role?: "OWNER" | "MEMBER";
 };
 
 const SECTIONS = [
@@ -126,6 +127,10 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Settings are Owner-only; keep the link hidden until the role is known
+  const visibleSections = SECTIONS.filter(
+    (item) => item.id !== "settings" || project?.role === "OWNER",
+  );
   const name = project?.name ?? "Project";
   const key = project?.key ?? "";
 
@@ -209,7 +214,7 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
               Project
             </p>
             <ul className="flex flex-col gap-0.5">
-              {SECTIONS.map((item) => {
+              {visibleSections.map((item) => {
                 const Icon = item.icon;
                 const active = item.id === section;
                 return (
