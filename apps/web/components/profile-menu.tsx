@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -20,11 +22,15 @@ export function initials(name: string | undefined) {
 
 export function ProfileMenu() {
   const { data } = authClient.useSession();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const user = data?.user;
 
   async function signOut() {
     await authClient.signOut();
-    window.location.href = "/signin";
+    // A client-side redirect keeps the cache, so drop this person's data first
+    queryClient.clear();
+    router.replace("/signin");
   }
 
   return (

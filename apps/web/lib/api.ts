@@ -31,6 +31,14 @@ export const api = axios.create({
   withCredentials: true, // the api reads the session cookie
 });
 
+// This module isn't a component, so it can't use the router. QueryProvider
+// registers what to do when the session has ended (redirect to sign-in).
+let unauthorizedHandler: (() => void) | null = null;
+
+export function onUnauthorized(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ErrorBody>) => {
@@ -39,9 +47,7 @@ api.interceptors.response.use(
       error.response?.data,
       error.response?.statusText || error.message,
     );
-    if (status === 401 && typeof window !== "undefined") {
-      window.location.href = "/signin";
-    }
+    if (status === 401) unauthorizedHandler?.();
     return Promise.reject(new ApiError(status, message));
   },
 );

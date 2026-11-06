@@ -1,8 +1,19 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfilePassword } from "@/components/profile-password";
+import { makeQueryClient } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+
+// The header's profile menu uses the query cache, as it does inside the app
+function renderPassword() {
+  return render(
+    <QueryClientProvider client={makeQueryClient()}>
+      <ProfilePassword />
+    </QueryClientProvider>,
+  );
+}
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/profile/password",
@@ -47,7 +58,7 @@ beforeEach(() => {
 
 describe("profile password tab", () => {
   it("shows the password card with other devices signed out by default", () => {
-    render(<ProfilePassword />);
+    renderPassword();
     expect(screen.getByRole("link", { name: "Password" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "General" })).toHaveAttribute("href", "/profile");
     expect(screen.getByText("Change the password you use to sign in.")).toBeInTheDocument();
@@ -59,7 +70,7 @@ describe("profile password tab", () => {
 
   it("changes the password and signs out other devices", async () => {
     const user = userEvent.setup();
-    render(<ProfilePassword />);
+    renderPassword();
     await fill(user, { current: "password123", next: "newpassword456", confirm: "newpassword456" });
 
     await waitFor(() =>
@@ -77,7 +88,7 @@ describe("profile password tab", () => {
 
   it("keeps other devices signed in when the box is unticked", async () => {
     const user = userEvent.setup();
-    render(<ProfilePassword />);
+    renderPassword();
     await user.click(screen.getByRole("checkbox", { name: "Sign out of other devices" }));
     await fill(user, { current: "password123", next: "newpassword456", confirm: "newpassword456" });
     await waitFor(() =>
@@ -114,7 +125,7 @@ describe("profile password tab", () => {
     },
   ])("refuses $why, under that field", async ({ input, field, message }) => {
     const user = userEvent.setup();
-    render(<ProfilePassword />);
+    renderPassword();
     await fill(user, input);
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.getByLabelText(field)).toHaveAttribute("aria-invalid", "true");
@@ -124,7 +135,7 @@ describe("profile password tab", () => {
 
   it("shows every problem at once, not one per attempt", async () => {
     const user = userEvent.setup();
-    render(<ProfilePassword />);
+    renderPassword();
     await fill(user, { next: "newpassword456", confirm: "newpassword789" });
     expect(await screen.findByText("Enter your current password")).toBeInTheDocument();
     expect(screen.getByText("Passwords do not match")).toBeInTheDocument();
@@ -136,7 +147,7 @@ describe("profile password tab", () => {
       data: null,
       error: { code: "INVALID_PASSWORD", message: "Invalid password", status: 400 },
     } as never);
-    render(<ProfilePassword />);
+    renderPassword();
     await fill(user, { current: "not-it", next: "newpassword456", confirm: "newpassword456" });
     expect(await screen.findByText("Current password is incorrect.")).toBeInTheDocument();
     expect(screen.getByLabelText("Current password")).toHaveAccessibleDescription(
@@ -151,7 +162,7 @@ describe("profile password tab", () => {
       data: null,
       error: { code: "INTERNAL", message: "boom", status: 500 },
     } as never);
-    render(<ProfilePassword />);
+    renderPassword();
     await fill(user, { current: "password123", next: "newpassword456", confirm: "newpassword456" });
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't update your password.");
   });
