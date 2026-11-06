@@ -1,5 +1,4 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
 
 export const CurrentUser = createParamDecorator(
     (_data: unknown, ctx: ExecutionContext) => {

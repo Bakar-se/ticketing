@@ -355,7 +355,7 @@ describe('project team', () => {
       http(alex).patch(`/projects/${project.id}/members/sam`).send({ role: 'MEMBER' }),
       http(sam).patch(`/projects/${project.id}/members/alex`).send({ role: 'MEMBER' }),
     ]);
-    const statuses = [first.status, second.status].sort();
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
     expect(statuses).toEqual([200, 409]);
     const owners = await prisma.projectMember.count({
       where: { projectId: project.id, role: 'OWNER' },

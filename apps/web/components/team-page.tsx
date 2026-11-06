@@ -206,7 +206,9 @@ export function TeamPage() {
     if (!needle) return true;
     return invite.email.toLowerCase().includes(needle);
   });
-  const now = Date.now();
+  // Expiry is judged as of when the team was loaded: reading the clock during
+  // render isn't pure, and this moves forward whenever the team reloads
+  const now = teamQuery.dataUpdatedAt;
 
   function submitInvite() {
     const address = email.trim();
