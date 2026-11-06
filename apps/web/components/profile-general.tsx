@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,13 +33,26 @@ const schema = z.object({
 type Values = z.input<typeof schema>;
 type Saved = z.output<typeof schema>;
 
-type Person = { name: string; email: string; phone?: string | null };
+type Person = {
+  name: string;
+  email: string;
+  phone?: string | null;
+  emailVerified?: boolean;
+};
 
 export function ProfileGeneral() {
   const { data, isPending } = authClient.useSession();
+  const params = useSearchParams();
   const person = data?.user;
+  // The verification link brings the person back here with ?verified=1
+  const justVerified = params.get("verified") === "1" && person?.emailVerified;
   return (
     <ProfileFrame>
+      {justVerified && (
+        <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm">
+          Your email is verified.
+        </p>
+      )}
       {/* A session refetch after saving must not unmount the form */}
       {isPending && !person ? (
         <p>Loading…</p>
@@ -137,6 +151,7 @@ function GeneralForm({ person }: { person: Person }) {
             <p id="profile-email-help" className="text-xs text-muted-foreground">
               Contact support to change your email.
             </p>
+            {!person.emailVerified && <VerifyEmail email={person.email} />}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="profile-phone">Phone</Label>
@@ -190,5 +205,46 @@ function GeneralForm({ person }: { person: Person }) {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function VerifyEmail({ email }: { email: string }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  async function send() {
+    setState("sending");
+    const result = await authClient.sendVerificationEmail({
+      email,
+      // An absolute URL: the link is opened from the email, through the auth service
+      callbackURL: `${window.location.origin}/profile?verified=1`,
+    });
+    setState(result.error ? "failed" : "sent");
+  }
+
+  if (state === "sent") {
+    return (
+      <p role="status" className="text-sm">
+        {`We've sent a link to ${email}.`}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-muted-foreground">Not verified.</span>
+      <Button
+        type="button"
+        variant="link"
+        className="h-auto p-0"
+        disabled={state === "sending"}
+        onClick={() => void send()}
+      >
+        Send verification email
+      </Button>
+      {state === "failed" && (
+        <p role="alert" className="w-full text-destructive">
+          Couldn&apos;t send the link. Try again in a moment.
+        </p>
+      )}
+    </div>
   );
 }

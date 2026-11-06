@@ -12,12 +12,15 @@ const session = vi.hoisted(() => ({
     name: "Alex Doe",
     email: "alex@company.com",
     phone: null as string | null,
+    emailVerified: true,
   },
 }));
+const search = vi.hoisted(() => ({ params: new URLSearchParams() }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/profile",
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => search.params,
 }));
 
 vi.mock("next/link", () => ({
@@ -32,6 +35,7 @@ vi.mock("@/lib/auth-client", () => ({
   authClient: {
     useSession: () => ({ data: { user: session.user }, isPending: false }),
     updateUser: vi.fn(),
+    sendVerificationEmail: vi.fn(),
     signOut: vi.fn(),
   },
 }));
@@ -44,8 +48,12 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
-function renderProfile(phone: string | null = null) {
-  session.user = { ...session.user, phone };
+function renderProfile(
+  phone: string | null = null,
+  { emailVerified = true, query = "" }: { emailVerified?: boolean; query?: string } = {},
+) {
+  session.user = { ...session.user, phone, emailVerified };
+  search.params = new URLSearchParams(query);
   return render(
     <QueryClientProvider client={makeQueryClient()}>
       <ProfileGeneral />
@@ -58,6 +66,50 @@ beforeEach(() => {
   vi.mocked(authClient.updateUser).mockResolvedValue({ data: { status: true }, error: null } as never);
   vi.mocked(api.get).mockReset();
   vi.mocked(api.get).mockResolvedValue({ data: [] });
+  vi.mocked(authClient.sendVerificationEmail).mockReset();
+  vi.mocked(authClient.sendVerificationEmail).mockResolvedValue({
+    data: { status: true },
+    error: null,
+  } as never);
+});
+
+describe("email verification", () => {
+  it("tells an unverified person and sends them a link back to their profile", async () => {
+    const user = userEvent.setup();
+    renderProfile(null, { emailVerified: false });
+    expect(screen.getByText("Not verified.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Send verification email" }));
+    await waitFor(() =>
+      expect(authClient.sendVerificationEmail).toHaveBeenCalledWith({
+        email: "alex@company.com",
+        callbackURL: `${window.location.origin}/profile?verified=1`,
+      }),
+    );
+    expect(await screen.findByText("We've sent a link to alex@company.com.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to verify once the email is verified", () => {
+    renderProfile(null, { emailVerified: true });
+    expect(screen.queryByText("Not verified.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
+  });
+
+  it("confirms the email after the person follows the link", () => {
+    renderProfile(null, { emailVerified: true, query: "verified=1" });
+    expect(screen.getByText("Your email is verified.")).toHaveAttribute("role", "status");
+  });
+
+  it("says so when the link can't be sent", async () => {
+    const user = userEvent.setup();
+    vi.mocked(authClient.sendVerificationEmail).mockResolvedValue({
+      data: null,
+      error: { message: "boom", status: 500 },
+    } as never);
+    renderProfile(null, { emailVerified: false });
+    await user.click(screen.getByRole("button", { name: "Send verification email" }));
+    expect(await screen.findByText("Couldn't send the link. Try again in a moment.")).toBeInTheDocument();
+  });
 });
 
 describe("profile general tab", () => {

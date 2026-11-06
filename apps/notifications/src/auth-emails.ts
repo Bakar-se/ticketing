@@ -1,15 +1,29 @@
 import { Worker, type ConnectionOptions } from "bullmq";
 import type { Transporter } from "nodemailer";
 
-type AuthEmailJob = {
-  type: "password.reset";
-  recipientEmail: string;
-  recipientName: string;
-  resetUrl: string;
-};
+type Recipient = { recipientEmail: string; recipientName: string };
 
-function buildAuthEmail(d: AuthEmailJob): { subject: string; text: string } {
+// Job shapes must match what apps/auth queues
+export type AuthEmailJob = Recipient &
+  (
+    | { type: "password.reset"; resetUrl: string }
+    | { type: "email.verify"; verifyUrl: string }
+  );
+
+export function buildAuthEmail(d: AuthEmailJob): { subject: string; text: string } {
   switch (d.type) {
+    case "email.verify":
+      return {
+        subject: "Confirm your email address",
+        text: [
+          `Hi ${d.recipientName},`,
+          "",
+          `Use this link to confirm that ${d.recipientEmail} is your email address:`,
+          d.verifyUrl,
+          "",
+          "The link expires in 1 hour. If you didn't ask for this, you can ignore this email.",
+        ].join("\n"),
+      };
     case "password.reset":
       return {
         subject: "Reset your password",

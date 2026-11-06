@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/index.js",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "bullmq": "^6.3.17",
@@ -17,6 +18,7 @@
     "@types/nodemailer": "^8.0.2",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
   }
 }

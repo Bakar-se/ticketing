@@ -2,35 +2,32 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { expo } from "@better-auth/expo";
 import { prisma } from "./prisma";
-import { authEmailQueue } from "./email-queue";
+import { queueAuthEmail } from "./email-queue";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
-      // Deliberately NOT awaited. If we waited only when the user exists, response
-      // time would reveal which emails have accounts. The catch keeps a Redis
-      // hiccup from becoming an unhandled rejection.
-      void authEmailQueue
-        .add(
-          "password.reset",
-          {
-            type: "password.reset",
-            recipientEmail: user.email,
-            recipientName: user.name,
-            resetUrl: url,
-          },
-          {
-            attempts: 3,
-            backoff: { type: "exponential", delay: 5000 },
-            removeOnComplete: true,
-            removeOnFail: { age: 3600 }, // the job holds a reset token, so don't keep failures around
-          },
-        )
-        .catch((err: Error) =>
-          console.error("failed to queue reset email", err),
-        );
+      queueAuthEmail({
+        type: "password.reset",
+        recipientEmail: user.email,
+        recipientName: user.name,
+        resetUrl: url,
+      });
+    },
+  },
+  // Verification proves a person owns their address. Signing in doesn't
+  // require it, but changing email does (#11).
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      queueAuthEmail({
+        type: "email.verify",
+        recipientEmail: user.email,
+        recipientName: user.name,
+        verifyUrl: url,
+      });
     },
   },
   user: {

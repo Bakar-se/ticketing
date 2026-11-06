@@ -66,6 +66,8 @@ export function SignupForm() {
       email: values.email,
       password: values.password,
       phone: values.phone || undefined, // empty phone is simply not sent
+      // Sign-up emails a verification link; it lands back on the profile
+      callbackURL: `${window.location.origin}/profile?verified=1`,
     });
     if (result.error)
       setServerError(result.error.message ?? "Something went wrong");
