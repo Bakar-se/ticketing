@@ -5,8 +5,10 @@ import { usePathname } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { cn } from "cn";
 
-// The Password tab joins this list along with its page (#10)
-const TABS = [{ href: "/profile", label: "General" }] as const;
+const TABS = [
+  { href: "/profile", label: "General" },
+  { href: "/profile/password", label: "Password" },
+] as const;
 
 export function ProfileFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

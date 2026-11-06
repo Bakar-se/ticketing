@@ -67,10 +67,11 @@ describe("profile general tab", () => {
     expect(screen.getByText("Manage your personal information.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "General" })).toHaveAttribute("aria-current", "page");
     expect(within(screen.getByRole("main")).getByText("AD")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Password" }),
-      "Password arrives with its page in #10",
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Password" })).toHaveAttribute(
+      "href",
+      "/profile/password",
+    );
+    expect(screen.getByRole("link", { name: "Password" })).not.toHaveAttribute("aria-current");
     expect(screen.getByLabelText("Full name")).toHaveValue("Alex Doe");
     expect(screen.getByLabelText("Email")).toHaveValue("alex@company.com");
     expect(screen.getByLabelText("Email")).toHaveAttribute("readonly");
