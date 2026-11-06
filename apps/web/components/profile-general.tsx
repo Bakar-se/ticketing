@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
+import {
+  ChangeEmailDialog,
+  clearPendingEmail,
+  readPendingEmail,
+} from "@/components/change-email-dialog";
 import { ProfileFrame } from "@/components/profile-frame";
 import { initials } from "@/components/profile-menu";
 import { Button } from "@/components/ui/button";
@@ -44,14 +49,28 @@ export function ProfileGeneral() {
   const { data, isPending } = authClient.useSession();
   const params = useSearchParams();
   const person = data?.user;
-  // The verification link brings the person back here with ?verified=1
-  const justVerified = params.get("verified") === "1" && person?.emailVerified;
+  // Email links land here with ?verified=1 or ?emailChange=1; Better Auth
+  // adds ?error=CODE when the link has expired or was already used
+  const landedFrom = params.get("verified") === "1"
+    ? "verify"
+    : params.get("emailChange") === "1"
+      ? "change"
+      : null;
+  const linkFailed = landedFrom !== null && params.get("error") !== null;
   return (
     <ProfileFrame>
-      {justVerified && (
-        <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm">
-          Your email is verified.
+      {linkFailed && (
+        <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {landedFrom === "verify"
+            ? "That link has expired or was already used. Send yourself a new one below."
+            : "That link has expired or was already used. Start again with Change email."}
         </p>
+      )}
+      {!linkFailed && landedFrom === "verify" && person?.emailVerified && (
+        <Notice>Your email is verified.</Notice>
+      )}
+      {!linkFailed && landedFrom === "change" && person && (
+        <EmailChangeNotice email={person.email} />
       )}
       {/* A session refetch after saving must not unmount the form */}
       {isPending && !person ? (
@@ -69,6 +88,7 @@ function GeneralForm({ person }: { person: Person }) {
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
   const {
     register,
     handleSubmit,
@@ -141,17 +161,33 @@ function GeneralForm({ person }: { person: Person }) {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="profile-email">Email</Label>
-            <Input
-              id="profile-email"
-              value={person.email}
-              readOnly
-              className="h-10 text-muted-foreground"
-              aria-describedby="profile-email-help"
-            />
-            <p id="profile-email-help" className="text-xs text-muted-foreground">
-              Contact support to change your email.
-            </p>
-            {!person.emailVerified && <VerifyEmail email={person.email} />}
+            <div className="flex gap-2">
+              <Input
+                id="profile-email"
+                value={person.email}
+                readOnly
+                className="h-10 text-muted-foreground"
+                aria-describedby={person.emailVerified ? undefined : "profile-email-help"}
+              />
+              {person.emailVerified && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 shrink-0"
+                  onClick={() => setChangingEmail(true)}
+                >
+                  Change email
+                </Button>
+              )}
+            </div>
+            {!person.emailVerified && (
+              <>
+                <p id="profile-email-help" className="text-xs text-muted-foreground">
+                  Verify your email before you can change it.
+                </p>
+                <VerifyEmail email={person.email} />
+              </>
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="profile-phone">Phone</Label>
@@ -204,8 +240,51 @@ function GeneralForm({ person }: { person: Person }) {
           </div>
         </form>
       </CardContent>
+      <ChangeEmailDialog
+        currentEmail={person.email}
+        open={changingEmail}
+        onOpenChange={setChangingEmail}
+      />
     </Card>
   );
+}
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <p role="status" className="rounded-lg bg-muted px-3 py-2 text-sm">
+      {children}
+    </p>
+  );
+}
+
+// Both email-change links land on /profile?emailChange=1. If the session
+// already has the address this browser asked for, the change is done;
+// otherwise the person has only approved it so far. Without a remembered
+// address (another browser started it) we can't tell, so say only what's true.
+function EmailChangeNotice({ email }: { email: string }) {
+  const queryClient = useQueryClient();
+  const [pending] = useState(readPendingEmail);
+  const done = pending !== null && pending === email.toLowerCase();
+  useEffect(() => {
+    if (!done) return;
+    clearPendingEmail();
+    // Same as after saving the profile: one request refreshes the member
+    // copies with the new email (docs/adr/0001)
+    void api
+      .get("/projects")
+      .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.projects }))
+      .catch(() => undefined);
+  }, [done, queryClient]);
+
+  if (done) return <Notice>{`Your email is now ${email}.`}</Notice>;
+  if (pending === null) {
+    return (
+      <Notice>
+        {`Your email is ${email}. If you're changing it, finish with the link we sent to the new address.`}
+      </Notice>
+    );
+  }
+  return <Notice>{`Change approved. Open the link we sent to ${pending} to finish.`}</Notice>;
 }
 
 function VerifyEmail({ email }: { email: string }) {

@@ -12,6 +12,8 @@ export type AuthEmailJob = Recipient &
   (
     | { type: "password.reset"; resetUrl: string }
     | { type: "email.verify"; verifyUrl: string }
+    | { type: "email.change.approve"; newEmail: string; approveUrl: string }
+    | { type: "email.change.confirm"; confirmUrl: string }
   );
 
 const connection = new IORedis(process.env.REDIS_URL!, {

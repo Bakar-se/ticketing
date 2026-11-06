@@ -14,6 +14,7 @@ A signed-in user creates a project with a short key such as `WEB`. Tickets in th
 - Move work on a drag-and-drop board, and keep a backlog beside it
 - Comment on a ticket
 - Email the owner when a ticket is created, a comment is added, or a password reset is requested
+- Confirm a person's email address, and change it only after the old address approves and the new one confirms
 
 An Expo client in `apps/mobile` signs in and lists projects through the same public origin. Set `EXPO_PUBLIC_AUTH_URL` to that origin and `EXPO_PUBLIC_API_URL` to `<origin>/backend`. It is a thin companion app, not part of the Compose stack.
 
@@ -60,14 +61,16 @@ Creating a ticket shows how the pieces meet:
 6. The API enqueues a `ticket.created` job and returns the ticket. If Redis is down, the error is logged and the request still succeeds: the ticket is already saved.
 7. The worker renders the email and sends it over SMTP. Failed jobs retry with exponential backoff.
 
-Password reset follows the same queue, on a separate `auth-emails` channel. The auth handler does not wait for the enqueue, so response time does not reveal whether an email has an account. Jobs that fail keep the reset link for a limited time, then Redis drops them.
+Password reset, email verification, and email change follow the same queue, on a separate `auth-emails` channel. The auth handler does not wait for the enqueue, so response time does not reveal whether an email has an account. Jobs that fail keep their one-time link for a limited time, then Redis drops them. A worker only knows the email types it was built with, so deploy notifications before auth when a new type is added.
+
+Changing email takes two links. The current address approves, then the new one confirms, and only then does the account change. Better Auth only runs the approval step for a verified address, so auth refuses `change-email` from an unverified one. Asking to change to an address that already has an account gets the same answer and sends nothing.
 
 ### Boundaries
 
 | Service | Owns | Talks to |
 | --- | --- | --- |
 | `web` | UI, route protection, client cache, proxy for `/api/auth` and `/backend` | Auth for the session; API for projects, tickets, and comments |
-| `auth` | Sign-up, sessions, password reset | `auth_db`; the `auth-emails` queue |
+| `auth` | Sign-up, sessions, password reset, email verification and change | `auth_db`; the `auth-emails` queue |
 | `api` | Projects, tickets, comments | `tickets_db`; auth for every protected request; the `notifications` queue |
 | `notifications` | Delivering mail | Redis; SMTP |
 

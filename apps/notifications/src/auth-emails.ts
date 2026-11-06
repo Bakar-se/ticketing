@@ -8,10 +8,38 @@ export type AuthEmailJob = Recipient &
   (
     | { type: "password.reset"; resetUrl: string }
     | { type: "email.verify"; verifyUrl: string }
+    | { type: "email.change.approve"; newEmail: string; approveUrl: string }
+    | { type: "email.change.confirm"; confirmUrl: string }
   );
 
 export function buildAuthEmail(d: AuthEmailJob): { subject: string; text: string } {
   switch (d.type) {
+    case "email.change.confirm":
+      return {
+        subject: "Confirm your new email address",
+        text: [
+          `Hi ${d.recipientName},`,
+          "",
+          `You approved a request to change the email on your Trackbit account to ${d.recipientEmail}.`,
+          "Use this link to confirm it. Until you do, your account keeps its current email:",
+          d.confirmUrl,
+          "",
+          "The link expires in 1 hour. If you didn't ask for this, you can ignore this email.",
+        ].join("\n"),
+      };
+    case "email.change.approve":
+      return {
+        subject: "Approve your new email address",
+        text: [
+          `Hi ${d.recipientName},`,
+          "",
+          `Someone asked to change the email on your Trackbit account to ${d.newEmail}.`,
+          "If that was you, approve the change with this link. We'll then send a confirmation link to the new address:",
+          d.approveUrl,
+          "",
+          "The link expires in 1 hour. If you didn't ask for this, don't open the link, and consider changing your password.",
+        ].join("\n"),
+      };
     case "email.verify":
       return {
         subject: "Confirm your email address",
