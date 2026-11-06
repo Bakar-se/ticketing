@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MoreHorizontal } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { ApiError, api, queryKeys } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -79,6 +80,7 @@ export function TeamPage() {
   const { data: session } = authClient.useSession();
   const me = session?.user?.id;
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [inviteError, setInviteError] = useState("");
@@ -192,7 +194,7 @@ export function TeamPage() {
   const mine = team.members.find((member) => member.userId === me);
   const isOwner = mine?.role === "OWNER";
   const ownerCount = team.members.filter((member) => member.role === "OWNER").length;
-  const needle = query.trim().toLowerCase();
+  const needle = debouncedQuery.trim().toLowerCase();
   const members = team.members.filter((member) => {
     if (!needle) return true;
     return (

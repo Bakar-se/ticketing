@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api, queryKeys } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { timeAgo, totalTickets, type Project } from "@/lib/projects";
 
 const SORTS = [
@@ -38,6 +39,7 @@ export function ProjectsScreen() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query);
   const [sort, setSort] = useState<Sort>("updated");
   const [toDelete, setToDelete] = useState<Project | null>(null);
   const [deleteError, setDeleteError] = useState("");
@@ -59,7 +61,7 @@ export function ProjectsScreen() {
       ).data,
   });
   const list = projects ?? [];
-  const needle = query.trim().toLowerCase();
+  const needle = debouncedQuery.trim().toLowerCase();
   const filtered = list.filter((project) => {
     if (!needle) return true;
     return [project.name, project.key, project.description ?? ""].some((value) =>
@@ -167,7 +169,7 @@ export function ProjectsScreen() {
             {visible.length === 0 ? (
               <p className="py-16 text-center text-muted-foreground">
                 {needle
-                  ? `No projects match "${query.trim()}"`
+                  ? `No projects match "${debouncedQuery.trim()}"`
                   : archived
                     ? "No archived projects."
                     : "No projects yet"}

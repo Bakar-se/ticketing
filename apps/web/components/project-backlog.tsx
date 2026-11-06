@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
 import { api, queryKeys } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import {
   PRIORITY_CLASS,
   PRIORITY_LABEL,
@@ -312,6 +313,7 @@ export function ProjectBacklog() {
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query);
   const [priority, setPriority] = useState<"all" | TicketPriority>("all");
   const [assignee, setAssignee] = useState<AssigneeFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -470,7 +472,7 @@ export function ProjectBacklog() {
       (ticket.createdById === viewerId || viewer?.role === "OWNER")
     );
   }
-  const needle = query.trim().toLowerCase();
+  const needle = debouncedQuery.trim().toLowerCase();
   const filtering = needle.length > 0 || priority !== "all" || assignee !== "all";
   const visible = tickets.filter((ticket) => {
     if (priority !== "all" && ticket.priority !== priority) return false;

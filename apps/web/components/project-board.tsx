@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api, queryKeys } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import {
   BOARD_COLUMNS,
   PRIORITY_CLASS,
@@ -165,6 +166,7 @@ export function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query);
   const [createOpen, setCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState<TicketStatus>("BACKLOG");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -238,7 +240,7 @@ export function ProjectBoard() {
     },
   });
 
-  const needle = query.trim().toLowerCase();
+  const needle = debouncedQuery.trim().toLowerCase();
   const tickets = ticketsQuery.data?.items ?? [];
   const visible = tickets.filter((ticket) => {
     if (!needle) return true;

@@ -142,19 +142,21 @@ describe("team page", () => {
     const user = userEvent.setup();
     renderTeam();
     const search = await screen.findByRole("textbox", { name: "Search members" });
+    // The search waits for typing to pause before it filters
     await user.type(search, "sam");
+    expect(screen.getByText("Alex Doe")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Alex Doe")).not.toBeInTheDocument());
     expect(screen.getByText("Sam Kim")).toBeInTheDocument();
-    expect(screen.queryByText("Alex Doe")).not.toBeInTheDocument();
     expect(screen.queryByText("jordan@company.com")).not.toBeInTheDocument();
 
     await user.clear(search);
     await user.type(search, "JORDAN@");
+    await waitFor(() => expect(screen.queryByText("Sam Kim")).not.toBeInTheDocument());
     expect(screen.getByText("jordan@company.com")).toBeInTheDocument();
-    expect(screen.queryByText("Sam Kim")).not.toBeInTheDocument();
 
     await user.clear(search);
     await user.type(search, "nobody");
-    expect(screen.getByText("No matches.")).toBeInTheDocument();
+    expect(await screen.findByText("No matches.")).toBeInTheDocument();
   });
 
   it("sends an invite and refuses a bad email", async () => {

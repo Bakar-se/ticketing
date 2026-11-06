@@ -8,6 +8,14 @@ Trackbit is an issue tracker. A project holds tickets, and each ticket has a rep
 A piece of work tracked in a project.
 _Avoid_: Issue, card, task
 
+**Project key**:
+The short uppercase code of a project, such as WEB, used to form its ticket keys. It is chosen when the project is created and never changes.
+_Avoid_: Project code, prefix
+
+**Archived project**:
+A project an Owner has put away. It is left out of the default project list but stays fully usable by its team. An Owner can restore it.
+_Avoid_: Closed project, frozen project
+
 **Ticket key**:
 The stable name of a ticket, formed from its project key and number, such as WEB-12.
 _Avoid_: Ticket id, issue number
