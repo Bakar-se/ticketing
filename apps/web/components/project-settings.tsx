@@ -8,16 +8,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { ApiError, api, queryKeys } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 type ProjectSettingsDetail = {
   id: string;
@@ -76,7 +71,7 @@ export function ProjectSettings() {
         <p className="text-muted-foreground">Manage this project.</p>
       </div>
       <GeneralCard project={project} />
-      <ProjectActions project={project} />
+      <DangerCard project={project} />
     </div>
   );
 }
@@ -212,86 +207,80 @@ function GeneralCard({ project }: { project: ProjectSettingsDetail }) {
   );
 }
 
-// Archive and delete move into the danger card in #8; until then they sit below General
-function ProjectActions({ project }: { project: ProjectSettingsDetail }) {
+function DangerCard({ project }: { project: ProjectSettingsDetail }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [error, setError] = useState("");
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const archived = project.archivedAt !== null;
 
   const archive = useMutation({
-    mutationFn: async (archived: boolean) =>
-      api.patch(`/projects/${project.id}`, { archived }),
+    mutationFn: async (next: boolean) =>
+      api.patch(`/projects/${project.id}`, { archived: next }),
     onSuccess: async () => {
       setError("");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.project(project.id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.projects });
     },
     onError: () => setError("Couldn't update the archive state."),
   });
 
-  const remove = useMutation({
-    mutationFn: async () => api.delete(`/projects/${project.id}`),
-    onSuccess: () => {
-      router.push("/projects");
-    },
-    onError: () => setError("Couldn't delete this project."),
-  });
-
   return (
-    <div className="flex flex-col gap-2">
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10"
-          onClick={() => archive.mutate(project.archivedAt == null)}
-        >
-          {project.archivedAt ? "Restore" : "Archive"}
-        </Button>
-        <Button
-          type="button"
-          variant="destructive"
-          className="h-10"
-          onClick={() => setDeleteOpen(true)}
-        >
-          Delete project
-        </Button>
-      </div>
-
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete project</DialogTitle>
-            <DialogDescription>
-              {`This permanently deletes ${project.name}, including its tickets, comments, and team.`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
+    <section aria-labelledby="danger-zone-title">
+      {/* Named for assistive tech; the card shows its two actions instead */}
+      <h2 id="danger-zone-title" className="sr-only">
+        Danger zone
+      </h2>
+      <Card className="ring-destructive/30">
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3">
+            <div>
+              <h3 className="font-medium">{archived ? "Restore project" : "Archive project"}</h3>
+              <p className="text-sm text-muted-foreground">
+                {archived
+                  ? "Bring this project back to your projects list."
+                  : "Hide this project from your projects list. You can restore it any time."}
+              </p>
+            </div>
             <Button
               type="button"
               variant="outline"
-              className="h-10"
-              onClick={() => setDeleteOpen(false)}
+              className="h-10 w-fit"
+              disabled={archive.isPending}
+              onClick={() => archive.mutate(!archived)}
             >
-              Cancel
+              {archived ? "Restore project" : "Archive project"}
             </Button>
+          </div>
+          <Separator />
+          <div className="flex flex-col gap-3">
+            <div>
+              <h3 className="font-medium">Delete project</h3>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete this project and all of its tickets. This can&apos;t be
+                undone.
+              </p>
+            </div>
             <Button
               type="button"
               variant="destructive"
-              className="h-10"
-              onClick={() => remove.mutate()}
+              className="h-10 w-fit"
+              onClick={() => setConfirmingDelete(true)}
             >
-              Delete
+              Delete project
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <DeleteProjectDialog
+        project={confirmingDelete ? project : null}
+        onClose={() => setConfirmingDelete(false)}
+        onDeleted={() => router.push("/projects")}
+      />
+    </section>
   );
 }

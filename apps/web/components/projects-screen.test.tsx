@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectsScreen } from "@/components/projects-screen";
@@ -81,5 +81,37 @@ describe("projects list", () => {
     await user.click(screen.getByRole("button", { name: "Archived" }));
     expect(await screen.findByText("Old app")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Old app" })).toBeInTheDocument();
+  });
+
+  it("asks for the project name before deleting from the list", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockImplementation(async (url: string, config) => {
+      const archivedView =
+        (config?.params as { archived?: string } | undefined)?.archived === "true";
+      if (url === "/projects") return { data: archivedView ? archivedList : [active] };
+      throw new Error(url);
+    });
+    let archivedList = [archived];
+    vi.mocked(api.delete).mockImplementation(async () => {
+      archivedList = [];
+      return { data: {} };
+    });
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <ProjectsScreen />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Archived" }));
+    await user.click(await screen.findByRole("button", { name: "Delete Old app" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Delete Old app?" })).toBeInTheDocument();
+    const confirm = within(dialog).getByRole("button", { name: "Delete project" });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText("Type the project name to confirm"), "Old app");
+    await user.click(confirm);
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/projects/p2"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Old app")).not.toBeInTheDocument());
   });
 });

@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSettings } from "@/components/project-settings";
@@ -27,7 +27,7 @@ const project = {
   name: "Web app",
   description: "Ship it",
   targetDate: "2026-12-01T00:00:00.000Z",
-  archivedAt: null,
+  archivedAt: null as string | null,
   role: "OWNER",
 };
 
@@ -114,21 +114,70 @@ describe("project settings", () => {
     expect(api.patch).not.toHaveBeenCalled();
   });
 
-  it("lets an Owner archive and delete", async () => {
+  it("lets an Owner archive a project from the danger card", async () => {
     const user = userEvent.setup();
     vi.mocked(api.patch).mockResolvedValue({ data: project });
+    renderSettings();
+    const danger = await screen.findByRole("region", { name: "Danger zone" });
+    expect(within(danger).getByRole("heading", { name: "Archive project" })).toBeInTheDocument();
+    await user.click(within(danger).getByRole("button", { name: "Archive project" }));
+    expect(api.patch).toHaveBeenCalledWith("/projects/p1", { archived: true });
+  });
+
+  it("offers Restore for an archived project", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockResolvedValue({ data: project });
+    renderSettings({ ...project, archivedAt: "2026-11-01T00:00:00.000Z" });
+    const danger = await screen.findByRole("region", { name: "Danger zone" });
+    expect(
+      within(danger).queryByRole("button", { name: "Archive project" }),
+    ).not.toBeInTheDocument();
+    await user.click(within(danger).getByRole("button", { name: "Restore project" }));
+    expect(api.patch).toHaveBeenCalledWith("/projects/p1", { archived: false });
+  });
+
+  it("deletes only after the Owner types the project name, then goes to the projects list", async () => {
+    const user = userEvent.setup();
     vi.mocked(api.delete).mockResolvedValue({ data: {} });
     renderSettings();
+    const danger = await screen.findByRole("region", { name: "Danger zone" });
+    expect(
+      within(danger).getByText(
+        "Permanently delete this project and all of its tickets. This can't be undone.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(within(danger).getByRole("button", { name: "Delete project" }));
 
-    await user.click(await screen.findByRole("button", { name: "Archive" }));
-    expect(api.patch).toHaveBeenCalledWith("/projects/p1", { archived: true });
-
-    await user.click(screen.getByRole("button", { name: "Delete project" }));
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Type the project name to confirm"), "Web app");
+    await user.click(within(dialog).getByRole("button", { name: "Delete project" }));
     await waitFor(() => {
       expect(api.delete).toHaveBeenCalledWith("/projects/p1");
       expect(push).toHaveBeenCalledWith("/projects");
     });
+    // The deleted project is never asked for again, so no "Project not found" flash
+    expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === "/projects/p1")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: "Project not found" })).not.toBeInTheDocument();
+  });
+
+  it("turns Archive into Restore once the project is archived", async () => {
+    const user = userEvent.setup();
+    let current = { ...project };
+    vi.mocked(api.get).mockImplementation(async () => ({ data: current }));
+    vi.mocked(api.patch).mockImplementation(async (_url, body) => {
+      const archivedNow = (body as { archived: boolean }).archived;
+      current = { ...current, archivedAt: archivedNow ? "2026-11-06T00:00:00.000Z" : null };
+      return { data: current };
+    });
+    render(
+      <QueryClientProvider client={makeQueryClient()}>
+        <ProjectSettings />
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Archive project" }));
+    await user.click(await screen.findByRole("button", { name: "Restore project" }));
+    expect(await screen.findByRole("button", { name: "Archive project" })).toBeInTheDocument();
+    expect(api.patch).toHaveBeenLastCalledWith("/projects/p1", { archived: false });
   });
 
   it("gives a Member not-found instead of the settings", async () => {

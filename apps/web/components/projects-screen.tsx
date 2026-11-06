@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Folder, Search, Trash2 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { CreateProjectForm } from "@/components/create-project-form";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,21 +37,12 @@ type Sort = (typeof SORTS)[number]["value"];
 
 export function ProjectsScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query);
   const [sort, setSort] = useState<Sort>("updated");
   const [toDelete, setToDelete] = useState<Project | null>(null);
-  const [deleteError, setDeleteError] = useState("");
   const [archived, setArchived] = useState(false);
-  const removeProject = useMutation({
-    mutationFn: (id: string) => api.delete(`/projects/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
-      router.refresh();
-    },
-  });
   const { data: projects } = useQuery({
     queryKey: [...queryKeys.projects, archived ? "archived" : "active"],
     queryFn: async () =>
@@ -180,10 +172,7 @@ export function ProjectsScreen() {
                   <ProjectCard
                     key={project.id}
                     project={project}
-                    onDelete={() => {
-                      setDeleteError("");
-                      setToDelete(project);
-                    }}
+                    onDelete={() => setToDelete(project)}
                   />
                 ))}
               </div>
@@ -208,54 +197,14 @@ export function ProjectsScreen() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={toDelete !== null}
-        onOpenChange={(next) => {
-          if (!next) setToDelete(null);
+      <DeleteProjectDialog
+        project={toDelete}
+        onClose={() => setToDelete(null)}
+        onDeleted={() => {
+          setToDelete(null);
+          router.refresh();
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete project</DialogTitle>
-            <DialogDescription>
-              {`This permanently deletes ${toDelete?.name ?? "this project"}, including its tickets, comments, and team.`}
-            </DialogDescription>
-          </DialogHeader>
-          {deleteError && (
-            <p role="alert" className="text-sm text-destructive">
-              {deleteError}
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10"
-              onClick={() => setToDelete(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="h-10"
-              disabled={removeProject.isPending}
-              onClick={async () => {
-                if (!toDelete) return;
-                setDeleteError("");
-                try {
-                  await removeProject.mutateAsync(toDelete.id);
-                  setToDelete(null);
-                } catch {
-                  setDeleteError("Something went wrong. Please try again.");
-                }
-              }}
-            >
-              {removeProject.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      />
     </div>
   );
 }
